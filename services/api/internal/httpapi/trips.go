@@ -28,6 +28,7 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 		"GET /v1/trips/{trip}": "get", "GET /v1/trips/{trip}/members": "members",
 		"POST /v1/trips/{trip}/invites": "invite", "DELETE /v1/trips/{trip}/invites/{invite}": "revoke",
 		"POST /v1/trips/{trip}/start": "start", "POST /v1/trips/{trip}/leave": "leave",
+		"PUT /v1/trips/{trip}/sharing": "share", "DELETE /v1/trips/{trip}/members/{member}": "remove",
 		"POST /v1/trips/{trip}/end": "end", "POST /v1/trips/{trip}/cancel": "cancel",
 	} {
 		mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +43,8 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 				unauthorized(w, r)
 				return
 			}
-			c := trips.Command{Action: action, TripID: r.PathValue("trip"), InviteID: r.PathValue("invite")}
-			if c.TripID != "" && !identity.UUID(c.TripID) || c.InviteID != "" && !identity.UUID(c.InviteID) {
+			c := trips.Command{Action: action, TripID: r.PathValue("trip"), InviteID: r.PathValue("invite"), MemberID: r.PathValue("member")}
+			if c.MemberID != "" && !identity.UUID(c.MemberID) || c.TripID != "" && !identity.UUID(c.TripID) || c.InviteID != "" && !identity.UUID(c.InviteID) {
 				writeAPIError(w, r, 400, "invalid_request", "valid UUID required")
 				return
 			}
@@ -55,14 +56,19 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 				}
 			}
 			var body struct {
-				Name      string `json:"name"`
-				Token     string `json:"token"`
-				ExpiresIn int    `json:"expires_in_s"`
-				MaxUses   int    `json:"max_uses"`
+				Name           string `json:"name"`
+				Token          string `json:"token"`
+				ExpiresIn      int    `json:"expires_in_s"`
+				MaxUses        int    `json:"max_uses"`
+				SharingEnabled *bool  `json:"enabled"`
 			}
 			// Separate schemas reject known-but-irrelevant fields as well as unknown ones.
 			var target any
 			switch action {
+			case "share":
+				target = &struct {
+					Enabled **bool `json:"enabled"`
+				}{&body.SharingEnabled}
 			case "create":
 				target = &struct {
 					Name *string `json:"name"`
@@ -97,9 +103,12 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 					return
 				}
 			}
-			if action == "create" && !identity.ValidName(body.Name, 120) || action == "join" && !trips.ValidToken(body.Token) || action == "invite" && (body.ExpiresIn < 60 || body.ExpiresIn > 86400 || body.MaxUses < 1 || body.MaxUses > 100) {
+			if action == "share" && body.SharingEnabled == nil || action == "create" && !identity.ValidName(body.Name, 120) || action == "join" && !trips.ValidToken(body.Token) || action == "invite" && (body.ExpiresIn < 60 || body.ExpiresIn > 86400 || body.MaxUses < 1 || body.MaxUses > 100) {
 				writeAPIError(w, r, 400, "invalid_request", "invalid name, invite token, expiry or use limit")
 				return
+			}
+			if body.SharingEnabled != nil {
+				c.SharingEnabled = *body.SharingEnabled
 			}
 			c.Name = body.Name
 			c.Token = body.Token

@@ -1,6 +1,6 @@
 # Phase 0 validation plan
 
-This is an acceptance record template, not a statement that tests have passed. Run gates sequentially; the active gate is M1. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
+This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; its software gate is now active. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
 
 ## Reproducible checks
 
@@ -16,7 +16,9 @@ scripts/android-navigation-check.py --serial "$ANDROID_SERIAL"
 
 It uses only the fixed public sample and restarts the app with location off, so run it **before** preparing a personal journey. It checks actual window flags, cached-route playback, disconnection/recovery and lifecycle state; it restores rotation and the server reverse. It does not inject mock GPS, verify a real journey, or create an offline map pack.
 
-## M1 field acceptance — still required
+## M1 field acceptance — deferred, still required
+
+- [ ] Physical GPS journey, road/instruction/restriction review, arrival and final mapping ADR acceptance. The owner confirmed “not travelled yet” and authorized M3 on 2026-11-13.
 
 1. While parked, choose a short, known drivable route in the target Kenyan area and verify the origin is on the intended surface road. Elevated roads, access restrictions and one-way routing need explicit review.
 2. Establish the private server connection; verify a fresh location with suitable accuracy, then preview the route. Record data revision, device/OS, route names, network arrangement and start conditions, without recording a private position trail.

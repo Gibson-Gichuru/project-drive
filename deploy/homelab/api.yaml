@@ -23,6 +23,10 @@ metadata:
     app.kubernetes.io/part-of: project-drive
 spec:
   replicas: 1
+  # M3 live state is single-instance and deliberately ephemeral across releases.
+  strategy:
+    type: Recreate
+    rollingUpdate: null
   revisionHistoryLimit: 3
   selector:
     matchLabels:

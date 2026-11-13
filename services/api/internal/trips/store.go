@@ -29,8 +29,9 @@ func problem(code string) error { return Error{Code: code} }
 
 type Store struct{ DB *pgxpool.Pool }
 type Command struct {
-	Action, TripID, InviteID, Key, Name, Token string
-	ExpiresIn, MaxUses                         int
+	Action, TripID, InviteID, Key, Name, Token, MemberID string
+	SharingEnabled                                       bool
+	ExpiresIn, MaxUses                                   int
 }
 type Trip struct {
 	ID        string     `json:"id"`
@@ -133,8 +134,8 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 		return nil, err
 	}
 	var role string
-	var left *time.Time
-	err = tx.QueryRow(ctx, `SELECT role,left_at FROM trip_members WHERE trip_id=$1 AND user_id=$2`, t.ID, user.ID).Scan(&role, &left)
+	var left, removed *time.Time
+	err = tx.QueryRow(ctx, `SELECT role,left_at,removed_at FROM trip_members WHERE trip_id=$1 AND user_id=$2`, t.ID, user.ID).Scan(&role, &left, &removed)
 	member := err == nil && left == nil
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
@@ -147,7 +148,7 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 		if err != nil {
 			return nil, err
 		}
-		if !valid || (t.Status != "planned" && t.Status != "active") {
+		if removed != nil || !valid || (t.Status != "planned" && t.Status != "active") {
 			return nil, problem("invalid_invite")
 		}
 		// A retry by an existing active member does not consume another use, even at capacity.
@@ -196,6 +197,12 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 			members = append(members, m)
 		}
 		return map[string]any{"members": members}, rows.Err()
+	case "share":
+		if c.SharingEnabled && t.Status != "active" {
+			return nil, problem("invalid_transition")
+		}
+		_, err := tx.Exec(ctx, `UPDATE trip_members SET sharing_enabled=$3 WHERE trip_id=$1 AND user_id=$2`, t.ID, user.ID, c.SharingEnabled)
+		return map[string]bool{"sharing_enabled": c.SharingEnabled}, err
 	case "leave":
 		if role == "owner" {
 			return nil, problem("owner_cannot_leave")
@@ -207,6 +214,21 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 		return nil, problem("forbidden")
 	}
 	switch c.Action {
+	case "remove":
+		if t.Status != "planned" && t.Status != "active" {
+			return nil, problem("invalid_transition")
+		}
+		if c.MemberID == t.OwnerID {
+			return nil, problem("owner_cannot_leave")
+		}
+		tag, err := tx.Exec(ctx, `UPDATE trip_members SET sharing_enabled=false,left_at=COALESCE(left_at,now()),removed_at=COALESCE(removed_at,now()) WHERE trip_id=$1 AND user_id=$2 AND role='member'`, t.ID, c.MemberID)
+		if err != nil {
+			return nil, err
+		}
+		if tag.RowsAffected() == 0 {
+			return nil, problem("not_found")
+		}
+		return map[string]string{"status": "removed"}, nil
 	case "invite":
 		if t.Status != "planned" && t.Status != "active" {
 			return nil, problem("invalid_transition")

@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags="-s -w" -o /out/server
 
 FROM build AS integration
 RUN apk add --no-cache gcc musl-dev
-CMD ["go", "test", "-race", "-count=1", "-v", "./internal/httpapi", "-run", "TestTripIntegration"]
+CMD ["go", "test", "-race", "-count=1", "-v", "./internal/httpapi", "-run", "Test(Trip|Stream)Integration"]
 
 FROM scratch AS runtime
 WORKDIR /app

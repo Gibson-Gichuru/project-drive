@@ -1,37 +1,351 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://project-drive.invalid/contracts/websocket/events.json",
-  "title": "Project Drive WebSocket event envelope",
-  "type": "object",
-  "required": ["type", "version", "payload"],
-  "properties": {
-    "type": { "type": "string", "enum": ["position.update", "trip.snapshot", "participant.position", "participant.joined", "participant.left", "trip.ended", "error"] },
-    "version": { "type": "integer", "const": 1 },
-    "event_id": { "type": "string", "format": "uuid" },
-    "sequence": { "type": "integer", "minimum": 0 },
-    "payload": { "type": "object" }
-  },
-  "additionalProperties": false,
-  "allOf": [
+  "title": "Project Drive M3 WebSocket protocol",
+  "description": "Single-instance, ephemeral tracking. Reconnect reauthorizes and receives a fresh snapshot. Snapshot resets sequence baseline; server_instance_id changes at restart. Clients age positions using the earlier of recorded_at/received_at and server_time, mark stale after stale_after_ms and remove at expires_at. Never treat cached positions as current after reconnect. No paid realtime service is required.",
+  "oneOf": [
     {
-      "if": { "properties": { "type": { "const": "position.update" } }, "required": ["type"] },
-      "then": {
-        "properties": {
-          "payload": {
-            "type": "object",
-            "required": ["latitude", "longitude", "recorded_at"],
-            "properties": {
-              "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
-              "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
-              "speed_mps": { "type": ["number", "null"], "minimum": 0 },
-              "heading_degrees": { "type": ["number", "null"], "minimum": 0, "maximum": 360 },
-              "accuracy_meters": { "type": "number", "minimum": 0 },
-              "recorded_at": { "type": "string", "format": "date-time" }
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload"
+      ],
+      "properties": {
+        "type": {
+          "const": "position.update"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "latitude",
+            "longitude",
+            "accuracy_meters",
+            "recorded_at"
+          ],
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
             },
-            "additionalProperties": false
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "accuracy_meters": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "speed_mps": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 100
+            },
+            "heading_degrees": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 360
+            },
+            "recorded_at": {
+              "type": "string",
+              "format": "date-time"
+            }
           }
+        }
+      },
+      "description": "Text only. Server derives user/trip. Recorded time must be no more than 15 seconds old or 5 seconds ahead by default. Strictly older/equal updates are dropped; no client sequence/routing fields are accepted."
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload",
+        "server_instance_id",
+        "sequence"
+      ],
+      "properties": {
+        "type": {
+          "const": "trip.snapshot"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "participants",
+            "server_time",
+            "stale_after_ms",
+            "position_ttl_ms"
+          ],
+          "properties": {
+            "participants": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "server_time": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "stale_after_ms": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "position_ttl_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "server_instance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload",
+        "server_instance_id",
+        "sequence"
+      ],
+      "properties": {
+        "type": {
+          "const": "participant.position"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "$ref": "#/$defs/Position"
+        },
+        "server_instance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload",
+        "server_instance_id",
+        "sequence"
+      ],
+      "properties": {
+        "type": {
+          "const": "participant.joined"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "user_id"
+          ],
+          "properties": {
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "server_instance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload",
+        "server_instance_id",
+        "sequence"
+      ],
+      "properties": {
+        "type": {
+          "const": "participant.left"
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "user_id",
+            "reason"
+          ],
+          "properties": {
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "access_revoked",
+                "expired"
+              ]
+            }
+          }
+        },
+        "server_instance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "version",
+        "payload"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "trip.ended",
+            "error"
+          ]
+        },
+        "version": {
+          "const": 1
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "description": "Best-effort terminal metadata before closing. Closure remains authoritative even if this event cannot be delivered."
+    }
+  ],
+  "$defs": {
+    "Position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user_id",
+        "latitude",
+        "longitude",
+        "accuracy_meters",
+        "recorded_at",
+        "received_at",
+        "expires_at",
+        "stale"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "accuracy_meters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "speed_mps": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "heading_degrees": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 360
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stale": {
+          "type": "boolean"
         }
       }
     }
-  ]
+  }
 }

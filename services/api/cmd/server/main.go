@@ -16,6 +16,7 @@ import (
 	"projectdrive/services/api/internal/httpapi"
 	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/navigation"
+	"projectdrive/services/api/internal/tracking"
 	"projectdrive/services/api/internal/trips"
 )
 
@@ -49,9 +50,16 @@ func main() {
 			os.Exit(2)
 		}
 	}
+	hub, err := tracking.New(tracking.PostgresAuthorizer{DB: db}, cfg.Tracking)
+	if err != nil {
+		logger.Error("tracking configuration failed")
+		os.Exit(2)
+	}
+	defer hub.Close()
+	coordinator := tracking.Coordinator{Hub: hub, Base: trips.Store{DB: db}}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}, Trips: httpapi.TripOptions{Service: trips.Store{DB: db}, PublicKey: publicKey}}),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey}, Tracking: hub}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -70,6 +78,7 @@ func main() {
 			os.Exit(1)
 		}
 	case <-ctx.Done():
+		hub.Close()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {

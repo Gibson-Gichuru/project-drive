@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"projectdrive/services/api/internal/identity"
+	"projectdrive/services/api/internal/tracking"
 )
 
 type Config struct {
@@ -14,6 +15,7 @@ type Config struct {
 	TileURL          string
 	NavigationURL    string
 	DevAuthPublicKey string
+	Tracking         tracking.Limits
 }
 
 func Load() (Config, error) {
@@ -24,6 +26,11 @@ func Load() (Config, error) {
 		TileURL:          os.Getenv("MAP_TILE_URL"),
 		NavigationURL:    os.Getenv("NAVIGATION_URL"),
 		DevAuthPublicKey: os.Getenv("DEV_AUTH_PUBLIC_KEY"),
+	}
+	var err error
+	cfg.Tracking, err = tracking.LimitsFromEnv(os.Getenv)
+	if err != nil {
+		return Config{}, err
 	}
 	if cfg.DevAuthPublicKey != "" {
 		// Require explicit intent: the default local environment is insufficient for auth.

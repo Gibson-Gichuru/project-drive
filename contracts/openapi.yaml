@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.3.0
+  version: 0.4.0
   description: Phase 0 private developer API. Trip identities are signed offline, expire within 15 minutes and are
     enabled only in explicit local/test environments. Trip endpoints return 401 when auth is disabled (including
-    homelab). Navigation remains the private M1 spike.
+    homelab). Navigation remains the private M1 spike. M3 streams require active membership and explicit sharing.
+    Live positions are ephemeral and single-instance.
 servers:
 - url: http://localhost:8080
 paths:
@@ -710,6 +711,208 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/sharing:
+    put:
+      operationId: setTripSharing
+      summary: Explicitly enable or disable own live sharing
+      security:
+      - DevelopmentBearer: []
+      parameters:
+      - &id004
+        in: path
+        name: trip
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: Idempotent. Enabling requires an active trip; disabling is also accepted on a terminal trip.
+        Share-off removes ephemeral coordinates and invalidates existing subscriptions/queued positions. This does
+        not start phone GPS collection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sharing'
+        '400':
+          description: Invalid UUID/body/query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or expired bearer; authentication disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Owner permission or explicit sharing required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Non-member, removed member or resource absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Trip not active, invalid transition or owner removal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Live connection, per-user or trip capacity exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Authorization store unavailable; live data fails closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/members/{member}:
+    delete:
+      operationId: removeTripMember
+      summary: Owner removes a member from a planned or active trip
+      description: Owner cannot remove self. Removal is idempotent and bans rejoining this trip in Phase 0, including
+        with an older usable invite. Existing reads/streams are revoked and positions are removed. Ordinary leave
+        allows rejoining with a usable invite, with sharing off.
+      security:
+      - DevelopmentBearer: []
+      parameters:
+      - *id004
+      - in: path
+        name: member
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Removed'
+        '400':
+          description: Invalid UUID/body/query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or expired bearer; authentication disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Owner permission or explicit sharing required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Non-member, removed member or resource absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Trip not active, invalid transition or owner removal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Live connection, per-user or trip capacity exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Authorization store unavailable; live data fails closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/stream:
+    get:
+      operationId: tripStream
+      summary: Authenticated WebSocket for active sharing members
+      description: 'Authorization: Bearer header required; URL query credentials/parameters rejected. Same-origin
+        browser handshakes only; native clients may omit Origin. Optional project-drive.v1 subprotocol. After upgrade
+        follow contracts/websocket/events.json and docs/milestones/M3.md. Client text messages are at most 4096
+        bytes by default; configure a 64 KiB client read limit for bounded snapshots. Protocol-level handshake failures
+        may use the WebSocket library plain HTTP error response.'
+      security:
+      - DevelopmentBearer: []
+      parameters:
+      - *id004
+      responses:
+        '101':
+          description: WebSocket upgrade; first event is a freshly authorized trip.snapshot
+        '400':
+          description: Invalid UUID/body/query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or expired bearer; authentication disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Owner permission or explicit sharing required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Non-member, removed member or resource absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Trip not active, invalid transition or owner removal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Live connection, per-user or trip capacity exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Authorization store unavailable; live data fails closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
@@ -866,7 +1069,7 @@ components:
           - member
         sharing_enabled:
           type: boolean
-          description: Always false until explicit sharing support in M3.
+          description: Explicit trip-scoped opt-in; only active sharing members can stream.
         joined_at:
           type: string
           format: date-time
@@ -914,6 +1117,20 @@ components:
       properties:
         status:
           const: revoked
+    Sharing:
+      type: object
+      required:
+      - sharing_enabled
+      properties:
+        sharing_enabled:
+          type: boolean
+    Removed:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          const: removed
   securitySchemes:
     DevelopmentBearer:
       type: http

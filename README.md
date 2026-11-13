@@ -94,3 +94,7 @@ Project Drive code is licensed under GNU AGPL-3.0-only (see `LICENSE`), which ke
 ## M2 trip API
 
 Trip lifecycle, private membership, hashed invitations and offline local/test identities are described in [the M2 report and local setup](docs/milestones/M2.md). The [REST contract](contracts/openapi.yaml) defines endpoints, retry behavior and limits. `make integration` now includes real PostGIS authorization and concurrent invite redemption tests. Homelab does not accept development identities; trip endpoints fail closed there. Android trip screens arrive in M4.
+
+## M3 realtime developer API
+
+The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is M4, and M1’s actual journey remains a separately deferred field test.

@@ -26,7 +26,7 @@ integration: setup
 	$(COMPOSE) up -d --build
 	$(COMPOSE) run --rm migrate
 	$(COMPOSE) run --rm migrate
-	$(COMPOSE) exec -T db sh -ec 'test "$$(psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atc "SELECT count(*) FROM schema_migrations WHERE version IN ('\''0001_initial'\'', '\''0002_trip_domain'\'')")" = "2"'
+	$(COMPOSE) exec -T db sh -ec 'test "$$(psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atc "SELECT count(*) FROM schema_migrations WHERE version IN ('\''0001_initial'\'', '\''0002_trip_domain'\'', '\''0003_member_removal'\'')")" = "3"'
 	$(COMPOSE) run --rm --build trip-tests
 	curl --fail --silent http://localhost:8080/healthz >/dev/null
 	curl --fail --silent http://localhost:8080/readyz >/dev/null

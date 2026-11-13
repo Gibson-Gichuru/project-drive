@@ -7,13 +7,15 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"projectdrive/services/api/internal/tracking"
 	"strings"
 	"time"
 )
 
 type Options struct {
 	NavigationOptions
-	Trips TripOptions
+	Trips    TripOptions
+	Tracking *tracking.Hub
 }
 
 type Pinger interface {
@@ -40,6 +42,7 @@ func NewHandler(db Pinger, logger *slog.Logger, options ...Options) http.Handler
 	if len(options) > 0 {
 		registerNavigation(mux, options[0].NavigationOptions)
 		registerTrips(mux, options[0].Trips)
+		registerStream(mux, options[0].Trips, options[0].Tracking)
 	}
 	return requestID(logging(logger, mux))
 }

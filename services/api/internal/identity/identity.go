@@ -58,13 +58,23 @@ func PublicKey(environment, encoded string) (ed25519.PublicKey, error) {
 	}
 	return ed25519.PublicKey(b), nil
 }
+
+type Session struct {
+	User      User
+	ExpiresAt time.Time
+}
+
 func Verify(key ed25519.PublicKey, raw string) (User, error) {
+	session, err := Authenticate(key, raw)
+	return session.User, err
+}
+func Authenticate(key ed25519.PublicKey, raw string) (Session, error) {
 	var c Claims
 	token, err := jwt.ParseWithClaims(raw, &c, func(*jwt.Token) (any, error) { return key, nil }, jwt.WithValidMethods([]string{"EdDSA"}), jwt.WithIssuer(Issuer), jwt.WithAudience(Audience), jwt.WithExpirationRequired(), jwt.WithIssuedAt())
 	if err != nil || token == nil || !token.Valid || token.Header["typ"] != "JWT" || c.IssuedAt == nil || c.ExpiresAt == nil || c.ExpiresAt.Sub(c.IssuedAt.Time) > MaxLifetime || !c.ExpiresAt.After(c.IssuedAt.Time) || !UUID(c.Subject) || !ValidName(c.Name, 80) {
-		return User{}, errors.New("invalid identity")
+		return Session{}, errors.New("invalid identity")
 	}
-	return User{c.Subject, c.Name}, nil
+	return Session{User: User{c.Subject, c.Name}, ExpiresAt: c.ExpiresAt.Time.UTC()}, nil
 }
 func Sign(key ed25519.PrivateKey, user User, now time.Time) (string, error) {
 	if !UUID(user.ID) || !ValidName(user.Name, 80) {
