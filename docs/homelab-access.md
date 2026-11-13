@@ -101,3 +101,5 @@ Samsung Android 17/API 37 phone and API 37 emulator with Project Drive reverses
 removed. Public trip creation and WebSocket requests were denied with 401;
 operational paths returned 404. Mobile-data switching and authenticated public
 convoy/upload have not been tested and are not claimed.
+
+After M5 deployment, the same public route/tile/font/auth-denial checks passed again against the promoted image. Both existing tunnel replicas and all four Project Drive services were Ready; database and map PVC bindings were unchanged.
