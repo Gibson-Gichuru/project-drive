@@ -58,17 +58,24 @@ the production gesture threshold is unchanged.
 
 ## Verification
 
-The final UI APK and test APK build, Android lint, and all 26 unit tests pass.
-The emulator passes all nine opt-in checks: native preview pan, pinch, preserved
-viewport after recreation, overview Recenter, exploration during playback and
-follow Recenter in one integration test; four convoy safety checks; three
-telemetry safety checks; and the public HTTPS routing/tiles/fonts/auth boundary.
+The final APK/test APK build, Android lint, and all 32 JVM unit tests pass.
+The API 37 emulator passes 14 stationary native tests: three camera, three input,
+four convoy safety, three telemetry safety, and one public HTTPS boundary check.
+The connected Samsung qualifies all 13 applicable tests across focused runs;
+the isolated synthetic-fix model test is emulator-only. No Android mock provider
+or real journey was used.
 
-The connected Samsung passes the seven convoy/telemetry safety checks and the
-separate opted-in public HTTPS check. Its native gesture integration timed out
-waiting for map style readiness; a subsequent visual inspection shows the night
-map and tools rendering with location/recording off. Hardware gesture acceptance
-is therefore still open until a foreground, undisturbed rerun succeeds.
+The phone's final three camera tests passed after the owner unlocked it. Earlier
+style-readiness failures occurred while Android reported dozing and a locked
+keyguard; they are retained here as failed attempts, resolved by that foreground
+rerun. Pan, pinch, overview/follow Recenter, preserved exploration, rapid recreation
+and saving before style readiness are now verified on both devices.
+
+Manual emulator inspection covers day/night, landscape, 130% text, and an actual
+public HTTPS name-search flow from Nairobi to Nairobi West (3.4 km route).
+Rapid night-mode/font changes retain the regional viewport. Captures live outside
+Git in the workstation's `artifacts/ui-ux-refresh` directory and use public places
+with GPS off. The phone was returned to a clean map launch with empty endpoints.
 The M1 real journey, M4 multi-phone field/battery checks, and M5 physical drive
 remain scheduled for 14 November 2026. This UI refresh does not close those gates.
 
@@ -87,13 +94,40 @@ Install both APKs, unlock the test device, and run:
 ```sh
 adb -s DEVICE shell am instrument -w \
   -e mapGestureChecks true -e publicEndpointChecks true \
-  -e class org.projectdrive.app.MapInteractionTest,org.projectdrive.app.ConvoySafetyTest,org.projectdrive.app.TelemetrySafetyTest,org.projectdrive.app.PublicEndpointTest \
+  -e class org.projectdrive.app.MapInteractionTest,org.projectdrive.app.NavigationInputTest,org.projectdrive.app.ConvoySafetyTest,org.projectdrive.app.TelemetrySafetyTest,org.projectdrive.app.PublicEndpointTest \
   org.projectdrive.app.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 The public endpoint check requires internet and the existing HTTPS homelab route.
 The map check requires an awake, unlocked, foreground activity. Default builds
 keep development authentication disabled for the public backend.
+
+The skill wrapper completed workflow `d2095f1f72b331d4c49904c2c131dbed`.
+Final verification questions and answers:
+
+- “Do redirect safety tests and the final Android app build, unit tests, device
+  suite, and lint pass?” Build/unit/lint passed; native execution is recorded above.
+- “Does rapid-configuration camera restoration compile and keep Android unit
+  tests and lint passing?” Yes.
+- “Does the deterministic pending-style viewport regression fixture compile and
+  pass lint?” Yes; its subsequent native execution passed on both devices.
+
+Only wrapper-owned diagnostic logs were subject to the wrapper's finish cleanup;
+project build outputs, screenshots and map data were retained.
+
+GitHub source commits are `097321f` (map UI), `9c6d89b` (place search/links)
+and `0523796` (rapid camera restoration). Final runtime-source
+[CI run](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43498994802)
+and [image/GitOps promotion](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43500129272)
+both succeeded. Search/data mounts reuse the existing public Cloudflare path
+rules and homelab storage; no new public route or schema migration was required.
+The API rollout completed on image
+`ghcr.io/gibson-gichuru/project-drive:0523796123b65758ecff76bbd8a2d98684f7c2c3`.
+Flux reports Ready at
+`homelab-deploy@sha1:cac478eea5e472606cb029d65c248db8dcf00f2d`; all four
+Project Drive pods are Ready with zero restarts at final inspection. Temporary
+data-import resources, local port forwarding and the disposable emulator were
+removed/stopped; persistent map/database volumes were retained.
 
 ## Rapid configuration changes
 

@@ -94,10 +94,21 @@ still require its documented loopback build and workstation forwarding setup.
   unsupported-link handling, and no automatic GPS/guidance. The emulator-only
   isolated-model test also proves a late first GPS fix cannot replace an explicitly
   chosen start. No mock location provider is used.
-- The prior native map test passed on the emulator after correcting the fixture
-  to wait for fling inertia. The final integrated emulator suite passes 11 tests (map, three input, four convoy,
-  three telemetry). Public search and physical-phone checks follow deployment;
-  earlier phone timeouts are retained in the UI evidence report.
+- The final integrated emulator suite passes 14 tests (three camera, three input,
+  four convoy, three telemetry, one public endpoint). The physical Samsung
+  qualifies all 13 applicable checks across focused runs, including its final
+  unlocked three-camera rerun. The synthetic-fix model fixture is emulator-only.
+- Public HTTPS checks pass on both devices: search, dataset download, routing,
+  tiles and fonts; private HTTP/WebSocket access remains 401 and operational
+  endpoints remain externally hidden. A generic workstation HTTP client received
+  an edge 403; the Android clients passed without relaxing edge policy.
+- Search release `9c6d89b` passed CI and homelab deployment; the API loaded the
+  immutable index, all four pods were Ready and internal health/readiness returned
+  200. A snapshot showed API memory 23 MiB (not a peak measurement), within the
+  256 MiB limit. Existing 5 GiB database and 10 GiB map PVCs remain Bound.
+- The updated legacy loopback navigation script passes Python compilation but
+  was not rerun end to end against its separate loopback build. Current HTTPS
+  native tests and the manual named-place planner flow passed instead.
 
 Reference formats: [Android deep links](https://developer.android.com/training/app-links/create-deeplinks),
 [Maps URL parameters](https://developers.google.com/maps/documentation/urls/get-started),
