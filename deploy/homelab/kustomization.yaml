@@ -7,4 +7,4 @@ resources:
   - maps.yaml
 images:
   - name: ghcr.io/gibson-gichuru/project-drive
-    newTag: e4e46c77fd63ab5a8ccb68cebca2758d6e6dbcf5
+    newTag: ce0fe97849514f301454f0f133e20db43d43620f
