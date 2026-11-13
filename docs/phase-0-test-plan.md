@@ -1,6 +1,6 @@
 # Phase 0 validation plan
 
-This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 software/device validation passed with one physical phone and two emulators; its two-real-phone field gate is deferred. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
+This is an acceptance record template, not a statement that tests have passed. M0/M2/M3 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 software/device validation passed with one physical phone and two emulators; its two-real-phone field gate is deferred. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
 
 ## Reproducible checks
 

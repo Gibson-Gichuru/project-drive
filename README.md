@@ -2,7 +2,7 @@
 
 Project Drive is an Android-first, open-source navigation and private convoy app. It is built around OpenStreetMap data, a provider-neutral navigation interface, and self-hosted services. No paid maps, hosted identity provider, proprietary location SDK, or metered API is required. Map rendering, regional OSM data, routing and geocoding are selected and evaluated in M1; the public OSM demo services are not a production dependency.
 
-**M0, M2 and M3 are complete. M4 — Android convoy is implemented and locally verified with one physical phone and two emulators; its two-real-phone field gate is deferred. M1’s physical journey remains deferred.** The app now renders the self-hosted Kenya basemap and previews routes; the real-world GPS route gate remains open. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
+**M0, M2 and M3 are complete. M4 — Android convoy is implemented, verified with one physical phone and two emulators, and deployed; its two-real-phone field gate is deferred. M1’s physical journey remains deferred.** The app now renders the self-hosted Kenya basemap and previews routes; the real-world GPS route gate remains open. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
 
 ## Local prerequisites
 
