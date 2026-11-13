@@ -38,6 +38,8 @@ spec:
       containers:
         - name: postgis
           image: postgis/postgis:17-3.5
+          command: ["/usr/local/bin/docker-entrypoint.sh"]
+          args: ["postgres"]
           ports:
             - name: postgres
               containerPort: 5432
@@ -79,6 +81,16 @@ spec:
             limits:
               cpu: 1
               memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            capabilities:
+              drop: ["ALL"]
+              add: ["KILL"]
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
