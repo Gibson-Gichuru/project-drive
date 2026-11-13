@@ -8,6 +8,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.constants.MapLibreConstants
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
@@ -27,6 +29,9 @@ import org.projectdrive.app.core.convoy.Participant
 class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, onPin: (Coordinate) -> Unit, private val onExplorationChanged: (Boolean) -> Unit = {}) {
     private val mapView: MapView
     private var map: MapLibreMap? = null
+    @Suppress("DEPRECATION")
+    private val restoredCamera=savedState?.getParcelable<CameraPosition>(MapLibreConstants.STATE_CAMERA_POSITION)
+    private fun regionalCamera()=CameraPosition.Builder().target(LatLng(-1.2921,36.8219)).zoom(12.0).build()
     private var route: Route? = null
     private var destination: Coordinate? = null
     private var origin: Coordinate? = null
@@ -84,7 +89,7 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
                 style.addLayer(CircleLayer("convoy-fresh-dot", "convoy-fresh").withProperties(circleColor("#087f5b"), circleRadius(10f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
                 style.addLayer(CircleLayer("convoy-stale-dot", "convoy-stale").withProperties(circleColor("#666666"), circleRadius(10f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
                 for (source in listOf("convoy-fresh", "convoy-stale")) style.addLayer(SymbolLayer("$source-label", source).withProperties(textField("{label}"), textFont(arrayOf("Noto Sans Regular")), textSize(12f), textColor("#202020"), textHaloColor("#ffffff"), textHaloWidth(2f), textOffset(arrayOf(0f, 1.5f))))
-                if (savedState == null) ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(-1.2921, 36.8219), 12.0))
+                ready.moveCamera(CameraUpdateFactory.newCameraPosition(restoredCamera ?: regionalCamera()))
                 redraw()
                 mapView.post { positionCamera() }
             }
@@ -174,7 +179,16 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     fun onStop() = mapView.onStop()
     fun onDestroy() = mapView.onDestroy()
     fun onLowMemory() = mapView.onLowMemory()
-    fun saveState(bundle: Bundle) { mapView.onSaveInstanceState(bundle); bundle.putBoolean("drive.camera.exploring", tracking.exploring) }
+    fun saveState(bundle: Bundle) {
+        mapView.onSaveInstanceState(bundle)
+        // A second configuration change can arrive before the replacement map loads.
+        // Preserve the last real viewport instead of saving the SDK's temporary world view.
+        val camera=map?.takeIf {it.style?.isFullyLoaded==true}?.cameraPosition ?: restoredCamera ?: regionalCamera()
+        val point=camera.target
+        val snapshot=CameraPosition.Builder(camera).target(point?.let {LatLng(it.latitude,it.longitude)}).build()
+        bundle.putParcelable(MapLibreConstants.STATE_CAMERA_POSITION,snapshot)
+        bundle.putBoolean("drive.camera.exploring", tracking.exploring)
+    }
 
     private fun accuracyArea(marker: Participant): JSONObject {
         val lat = Math.toRadians(marker.coordinate.latitude); val lon = Math.toRadians(marker.coordinate.longitude)

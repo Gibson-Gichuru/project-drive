@@ -23,6 +23,64 @@ import kotlin.math.abs
 /** Opt-in real native gestures on a fixed public route, with GPS off. */
 @RunWith(AndroidJUnit4::class)
 class MapInteractionTest {
+    @Test fun savingBeforeMapReadinessRetainsThePreviousViewport() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val saved=android.os.Bundle()
+            val camera=org.maplibre.android.camera.CameraPosition.Builder().target(org.maplibre.android.geometry.LatLng(-0.28,36.07)).zoom(14.0).build()
+            val key=org.maplibre.android.constants.MapLibreConstants.STATE_CAMERA_POSITION
+            saved.putParcelable(key,camera)
+            val renderer=org.projectdrive.app.map.MapLibreRenderer(instrumentation.targetContext,saved,BuildConfig.MAP_SERVER_URL,{})
+            try {
+                val output=android.os.Bundle();renderer.saveState(output)
+                @Suppress("DEPRECATION") val restored=output.getParcelable<org.maplibre.android.camera.CameraPosition>(key)
+                assertNotNull("Pending style initialization discarded the saved viewport",restored)
+                assertEquals(-0.28,checkNotNull(restored?.target).latitude,.0001)
+                assertEquals(36.07,checkNotNull(restored?.target).longitude,.0001)
+                assertEquals(14.0,checkNotNull(restored).zoom,.1)
+            }finally{renderer.onDestroy()}
+        }
+    }
+    @Test fun rapidRecreationBeforeStyleReadinessKeepsTheRegionalViewport() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            fun find(view:View):MapView? {
+                if(view is MapView)return view
+                if(view is ViewGroup)for(i in 0 until view.childCount)find(view.getChildAt(i))?.let{return it}
+                return null
+            }
+            fun awaitCamera():Triple<Double,Double,Double> {
+                val map=AtomicReference<MapLibreMap?>()
+                scenario.onActivity {checkNotNull(find(it.window.decorView)).getMapAsync {ready->map.set(ready)}}
+                val deadline=SystemClock.elapsedRealtime()+30000
+                var camera:Triple<Double,Double,Double>?=null
+                while(camera==null&&SystemClock.elapsedRealtime()<deadline) {
+                    scenario.onActivity {
+                        val ready=map.get()
+                        if(ready?.style?.isFullyLoaded==true) {
+                            val c=ready.cameraPosition;val target=c.target
+                            if(target!=null)camera=Triple(target.latitude,target.longitude,c.zoom)
+                        }
+                    }
+                    if(camera==null)SystemClock.sleep(50)
+                }
+                return checkNotNull(camera){"Map did not become ready after recreation"}
+            }
+            val initial=awaitCamera()
+            assertTrue("Initial map should show the region, without selecting route endpoints",initial.third>8)
+            scenario.recreate()
+            scenario.recreate()
+            val restored=awaitCamera()
+            assertEquals(initial.first,restored.first,.0001)
+            assertEquals(initial.second,restored.second,.0001)
+            assertEquals(initial.third,restored.third,.1)
+            scenario.onActivity {
+                val state=ViewModelProvider(it)[NavigationViewModel::class.java].state.value
+                assertTrue(state.originText.isEmpty());assertNull(state.destination);assertFalse(state.gpsWanted)
+            }
+        }
+    }
     @Test fun panPinchRecenterAndRotationRespectExploration() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
         val instrumentation=InstrumentationRegistry.getInstrumentation()

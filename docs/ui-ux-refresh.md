@@ -94,3 +94,17 @@ adb -s DEVICE shell am instrument -w \
 The public endpoint check requires internet and the existing HTTPS homelab route.
 The map check requires an awake, unlocked, foreground activity. Default builds
 keep development authentication disabled for the public backend.
+
+## Rapid configuration changes
+
+Visual inspection at 130% font scale found that changing night mode and font size
+quickly could save the SDK's temporary world camera before the replacement map's
+style was ready. The renderer now restores its previous camera explicitly after
+style loading and copies that previous camera into the next saved-state bundle
+when initialization is still pending. It keeps the existing saved viewport and
+exploration policy; route endpoints remain empty on a fresh launch.
+
+Two focused native regressions cover rapid activity recreation without a route
+and saving an unattached/pending map before style readiness. The latter supplies
+a fixed public viewport and proves it survives before an asynchronous callback
+can finish. These tests supplement the native route pan/pinch/Recenter test.
