@@ -2,7 +2,7 @@
 
 Project Drive is an Android-first, open-source navigation and private convoy app. It is built around OpenStreetMap data, a provider-neutral navigation interface, and self-hosted services. No paid maps, hosted identity provider, proprietary location SDK, or metered API is required. Map rendering, regional OSM data, routing and geocoding are selected and evaluated in M1; the public OSM demo services are not a production dependency.
 
-This repository implements Phase 0 milestone **M0 — Repository and environment**. See [the roadmap](docs/ROADMAP.md) for scope, acceptance gates and the next milestone.
+This repository has completed Phase 0 milestone **M0 — Repository and environment**. See [the roadmap](docs/ROADMAP.md) and [M0 report](docs/milestones/M0.md) for acceptance evidence and the next milestone.
 
 ## Local prerequisites
 
@@ -53,13 +53,11 @@ The same `make ci` command can run on a clean workstation without a paid CI acco
 
 The homelab deployment uses the existing K3s/Flux setup, with an isolated Flux source in `project-drive-delivery` and app resources in `homelab-apps`. The API and its PostGIS database remain ClusterIP-only. PostgreSQL state uses a 5 GiB `local-path` PVC, so it is node-local and requires a backup plan before user data is stored. GHCR images are referenced by commit SHA; Flux reconciles the `homelab-deploy` branch after the release workflow builds and publishes the API image.
 
-One-time operator setup after the public GitHub repository exists:
+Homelab deployment status and access:
 
-1. The deployment uses the repository-linked public GHCR image `ghcr.io/gibson-gichuru/project-drive`; no registry credentials or public ingress are required.
-2. Create the Project Drive database Secret in `homelab-apps` with keys `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `DATABASE_URL`. Store the source file outside this repository with mode `0600`, use a unique random password, and remove the temporary file after creating the Secret. `DATABASE_URL` must point to `project-drive-db.homelab-apps.svc.cluster.local:5432` and URL-encode credentials.
-3. Apply `deploy/homelab/rbac.yaml` using the authorized operator identity. It gives the Flux impersonated service account rights only over Deployments, StatefulSets and Services in `homelab-apps`.
-4. Apply `deploy/homelab/flux/release.yaml` using the authorized operator identity. Flux then reads the public `homelab-deploy` branch and reconciles the app resources.
-5. Enable the `Deploy to homelab` workflow for pushes to `main`. It builds an immutable image, publishes it to GHCR, and updates the deployment branch. Review the commit and Flux rollout status after first enabling it.
+The deployment uses the repository-linked public GHCR image `ghcr.io/gibson-gichuru/project-drive`; no registry credentials or public ingress are required. Flux reads the `homelab-deploy` branch and applies the release into `homelab-apps`. The PostGIS database Secret is provisioned on the cluster, outside Git. GitHub Actions builds an immutable image, publishes it to GHCR, and updates the GitOps branch when API code changes. No cluster credentials are stored in GitHub Actions.
+
+To reach the API temporarily from an authorized workstation, run `kubectl -n homelab-apps port-forward service/project-drive-api 8080:8080`, then request `http://127.0.0.1:8080/healthz` or `/readyz`. The Service remains ClusterIP-only. Do not expose it publicly until authentication and privacy controls have been implemented and reviewed.
 
 Use the repo's GitHub branch protection for `main`; do not execute untrusted pull-request code on a homelab runner. The deployment job uses GitHub-hosted runners only for image publishing, and Flux pulls the release from GitHub. No cluster credentials are stored in GitHub Actions. Do not expose the API publicly until authentication and privacy controls have been implemented and reviewed.
 
