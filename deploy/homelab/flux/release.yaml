@@ -50,3 +50,12 @@ spec:
       kind: Deployment
       name: project-drive-api
       namespace: homelab-apps
+
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: project-drive-tiles
+      namespace: homelab-apps
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: project-drive-router
+      namespace: homelab-apps

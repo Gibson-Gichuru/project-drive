@@ -4,6 +4,7 @@ namespace: homelab-apps
 resources:
   - postgres.yaml
   - api.yaml
+  - maps.yaml
 images:
   - name: ghcr.io/gibson-gichuru/project-drive
-    newTag: 493d2e96378036929b9532d33018604e1d4f84c6
+    newTag: bcfdc3497e2988c18619b6809a073848173ea49f

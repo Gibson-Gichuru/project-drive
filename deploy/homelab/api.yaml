@@ -72,6 +72,10 @@ spec:
               value: :8080
             - name: APP_ENV
               value: homelab
+            - name: MAP_TILE_URL
+              value: http://project-drive-tiles:3000
+            - name: NAVIGATION_URL
+              value: http://project-drive-router:8002
           readinessProbe:
             httpGet:
               path: /readyz
