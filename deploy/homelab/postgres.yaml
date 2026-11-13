@@ -23,6 +23,8 @@ metadata:
 spec:
   serviceName: project-drive-db
   replicas: 1
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app.kubernetes.io/name: project-drive-db
@@ -89,7 +91,7 @@ spec:
             capabilities:
               drop: ["ALL"]
             seccompProfile:
-              type: Unconfined
+              type: RuntimeDefault
             appArmorProfile:
               type: Unconfined
           volumeMounts:
