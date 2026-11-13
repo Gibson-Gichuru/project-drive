@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: project-drive-delivery
+  labels:
+    app.kubernetes.io/part-of: project-drive
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: project-drive
+  namespace: project-drive-delivery
+spec:
+  interval: 1m
+  url: https://github.com/Gibson-Gichuru/project-drive
+  ref:
+    branch: homelab-deploy
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: project-drive
+  namespace: project-drive-delivery
+spec:
+  interval: 2m
+  retryInterval: 1m
+  timeout: 5m
+  path: ./deploy/homelab
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: project-drive
+  targetNamespace: homelab-apps
+  serviceAccountName: project-drive-reconciler
+  wait: true
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: project-drive-db
+      namespace: homelab-apps
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: project-drive-api
+      namespace: homelab-apps

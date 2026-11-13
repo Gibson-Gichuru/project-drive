@@ -1,0 +1,16 @@
+.env*
+!.env.example
+!.env.example.*
+.idea/
+.gradle/
+**/build/
+local.properties
+*.iml
+*.apk
+*.aab
+*.jks
+*.keystore
+/secrets/
+/services/api/bin/
+/services/api/coverage.out
+*.log

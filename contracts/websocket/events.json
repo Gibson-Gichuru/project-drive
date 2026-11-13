@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-drive.invalid/contracts/websocket/events.json",
+  "title": "Project Drive WebSocket event envelope",
+  "type": "object",
+  "required": ["type", "version", "payload"],
+  "properties": {
+    "type": { "type": "string", "enum": ["position.update", "trip.snapshot", "participant.position", "participant.joined", "participant.left", "trip.ended", "error"] },
+    "version": { "type": "integer", "const": 1 },
+    "event_id": { "type": "string", "format": "uuid" },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "payload": { "type": "object" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "position.update" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["latitude", "longitude", "recorded_at"],
+            "properties": {
+              "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+              "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+              "speed_mps": { "type": ["number", "null"], "minimum": 0 },
+              "heading_degrees": { "type": ["number", "null"], "minimum": 0, "maximum": 360 },
+              "accuracy_meters": { "type": "number", "minimum": 0 },
+              "recorded_at": { "type": "string", "format": "date-time" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ]
+}

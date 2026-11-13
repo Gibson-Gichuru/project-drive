@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: homelab-apps
+resources:
+  - postgres.yaml
+  - api.yaml
+images:
+  - name: ghcr.io/gibson-gichuru/project-drive-api
+    newTag: bootstrap

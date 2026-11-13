@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-project_drive}
+      POSTGRES_USER: ${POSTGRES_USER:-project_drive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_project_drive_only}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - project_drive_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ../services/api
+      target: runtime
+    command: ["/app/migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://project_drive:local_project_drive_only@db:5432/project_drive?sslmode=disable}
+      MIGRATIONS_DIR: /app/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ../services/api
+      target: runtime
+    command: ["/app/server"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://project_drive:local_project_drive_only@db:5432/project_drive?sslmode=disable}
+      API_ADDR: ${API_ADDR:-:8080}
+      APP_ENV: ${APP_ENV:-local}
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  project_drive_db:
