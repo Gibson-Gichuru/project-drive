@@ -55,7 +55,7 @@ The homelab deployment uses the existing K3s/Flux setup, with an isolated Flux s
 
 One-time operator setup after the public GitHub repository exists:
 
-1. Configure the GitHub Container Registry package for this repository. The deployment references the existing `ghcr-pull` secret in `homelab-apps`; verify it is authorized to pull this package before enabling the Flux release.
+1. The deployment uses the repository-linked public GHCR image `ghcr.io/gibson-gichuru/project-drive`; no registry credentials or public ingress are required.
 2. Create the Project Drive database Secret in `homelab-apps` with keys `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `DATABASE_URL`. Store the source file outside this repository with mode `0600`, use a unique random password, and remove the temporary file after creating the Secret. `DATABASE_URL` must point to `project-drive-db.homelab-apps.svc.cluster.local:5432` and URL-encode credentials.
 3. Apply `deploy/homelab/rbac.yaml` using the authorized operator identity. It gives the Flux impersonated service account rights only over Deployments, StatefulSets and Services in `homelab-apps`.
 4. Apply `deploy/homelab/flux/release.yaml` using the authorized operator identity. Flux then reads the public `homelab-deploy` branch and reconciles the app resources.

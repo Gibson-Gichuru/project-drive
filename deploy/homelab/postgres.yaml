@@ -58,6 +58,11 @@ spec:
                 secretKeyRef:
                   name: project-drive-db
                   key: POSTGRES_PASSWORD
+          startupProbe:
+            exec:
+              command: ["sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
             exec:
               command: ["sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
