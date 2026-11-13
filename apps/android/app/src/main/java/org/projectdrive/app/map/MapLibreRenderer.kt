@@ -1,6 +1,7 @@
 package org.projectdrive.app.map
 
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import org.json.JSONArray
@@ -23,7 +24,7 @@ import org.projectdrive.app.core.navigation.Route
 import org.projectdrive.app.core.convoy.Participant
 
 // All MapLibre types stay in this renderer adapter.
-class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, onPin: (Coordinate) -> Unit) {
+class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, onPin: (Coordinate) -> Unit, private val onExplorationChanged: (Boolean) -> Unit = {}) {
     private val mapView: MapView
     private var map: MapLibreMap? = null
     private var route: Route? = null
@@ -33,7 +34,10 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     private var participants = emptyList<Participant>()
     private var now = 0L
     private var fitted: Route? = null
-    private var following = false
+    private var followedPosition: Coordinate? = null
+    private var cameraWasFollowing = false
+    private val tracking = CameraTracking(savedState?.getBoolean("drive.camera.exploring") ?: false)
+    val exploring get() = tracking.exploring
     val view: View get() = mapView
 
     init {
@@ -41,19 +45,32 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         mapView = MapView(context)
         mapView.onCreate(savedState)
         mapView.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (!following && (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)) {
-                route?.let { current -> mapView.post { fit(current) } }
+            if (!tracking.exploring && (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)) {
+                mapView.post { positionCamera(force = true) }
             }
         }
-        val json = context.assets.open("kenya-style.json").bufferedReader().use { it.readText() }
+        val night = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val json = context.assets.open(if (night) "kenya-style-night.json" else "kenya-style.json").bufferedReader().use { it.readText() }
             .replace("__BASE_URL__", server.trimEnd('/'))
         mapView.getMapAsync { ready ->
             map = ready
             ready.uiSettings.isAttributionEnabled = true
+            // Keep native attribution above the system gesture area on an edge-to-edge map.
+            val density = mapView.resources.displayMetrics.density
+            ready.uiSettings.setLogoMargins((8*density).toInt(),0,0,(24*density).toInt())
+            ready.uiSettings.setAttributionMargins((92*density).toInt(),0,0,(24*density).toInt())
+            ready.uiSettings.setAllGesturesEnabled(true)
+            ready.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                    tracking.gesture()
+                    onExplorationChanged(true)
+                }
+            }
             ready.addOnMapLongClickListener { point -> onPin(Coordinate(point.latitude, point.longitude)); true }
             ready.setStyle(Style.Builder().fromJson(json)) { style ->
                 listOf("route", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
-                style.addLayer(LineLayer("route-line", "route").withProperties(lineColor("#11786e"), lineWidth(6f), lineOpacity(0.9f)))
+                style.addLayer(LineLayer("route-casing", "route").withProperties(lineColor(if(night) "#10281f" else "#ffffff"), lineWidth(9f), lineOpacity(0.95f), lineCap("round"), lineJoin("round")))
+                style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(if(night) "#97d7ac" else "#236653"), lineWidth(5f), lineOpacity(1f), lineCap("round"), lineJoin("round")))
                 style.addLayer(CircleLayer("destination-dot", "destination").withProperties(circleColor("#c15c45"), circleRadius(7f), circleStrokeColor("#ffffff"), circleStrokeWidth(2f)))
                 style.addLayer(CircleLayer("position-dot", "position").withProperties(circleColor("#2468c6"), circleRadius(9f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
                 style.addLayer(FillLayer("convoy-accuracy-area", "convoy-accuracy").withProperties(fillColor("#087f5b"), fillOpacity(0.12f)))
@@ -62,6 +79,7 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
                 for (source in listOf("convoy-fresh", "convoy-stale")) style.addLayer(SymbolLayer("$source-label", source).withProperties(textField("{label}"), textFont(arrayOf("Noto Sans Regular")), textSize(12f), textColor("#202020"), textHaloColor("#ffffff"), textHaloWidth(2f), textOffset(arrayOf(0f, 1.5f))))
                 if (savedState == null) ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(-1.2921, 36.8219), 12.0))
                 redraw()
+                mapView.post { positionCamera() }
             }
         }
     }
@@ -72,9 +90,10 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         this.destination = destination
         this.position = position
         this.simulated = simulated
-        following = follow
+        tracking.update(route, follow)
+        onExplorationChanged(tracking.exploring)
         redraw()
-        if (follow && position != null) map?.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(position.latitude, position.longitude), 16.0))
+        positionCamera()
     }
 
     private fun redraw() {
@@ -90,18 +109,39 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         style.getSourceAs<GeoJsonSource>("destination")?.setGeoJson(destination?.let { point(it) } ?: emptyCollection)
         style.getSourceAs<GeoJsonSource>("position")?.setGeoJson(position?.let { point(it) } ?: emptyCollection)
         style.getLayerAs<CircleLayer>("position-dot")?.setProperties(circleColor(if (simulated) "#8e4ab8" else "#2468c6"))
-        route?.let { current ->
-            if (fitted !== current) {
-                mapView.post { if (!following) fit(current) }
-                fitted = current
-            }
-        }
     }
 
-    private fun fit(current: Route) {
-        if (route !== current || following || mapView.width == 0 || mapView.height == 0) return
-        val bounds = LatLngBounds.Builder().includes(current.geometry.map { LatLng(it.latitude, it.longitude) }).build()
-        map?.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, 90))
+    fun recenter() {
+        tracking.recenter()
+        onExplorationChanged(false)
+        positionCamera(force = true, fallback = true)
+    }
+
+    private fun positionCamera(force: Boolean = false, fallback: Boolean = false) {
+        val ready = map ?: return
+        if (ready.style == null || tracking.exploring || mapView.width == 0 || mapView.height == 0) return
+        val currentPosition = position
+        if (tracking.following && currentPosition == null && !force) return
+        if (tracking.following && currentPosition != null) {
+            if (force || !cameraWasFollowing || followedPosition != currentPosition) {
+                ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentPosition.latitude, currentPosition.longitude), 16.0))
+                followedPosition = currentPosition
+            }
+            cameraWasFollowing = true
+        } else {
+            val wasFollowing = cameraWasFollowing
+            cameraWasFollowing = false
+            route?.let { current ->
+                if (force || fitted !== current || wasFollowing) {
+                    val bounds = LatLngBounds.Builder().includes(current.geometry.map { LatLng(it.latitude, it.longitude) }).build()
+                    val padding = (40 * mapView.resources.displayMetrics.density).toInt().coerceAtMost(minOf(mapView.width, mapView.height) / 4)
+                    ready.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding))
+                    fitted = current
+                }
+                return
+            }
+            if (fallback) ready.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(-1.2921, 36.8219), if (currentPosition != null) 16.0 else 12.0))
+        }
     }
 
     fun onStart() = mapView.onStart()
@@ -110,7 +150,7 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     fun onStop() = mapView.onStop()
     fun onDestroy() = mapView.onDestroy()
     fun onLowMemory() = mapView.onLowMemory()
-    fun saveState(bundle: Bundle) = mapView.onSaveInstanceState(bundle)
+    fun saveState(bundle: Bundle) { mapView.onSaveInstanceState(bundle); bundle.putBoolean("drive.camera.exploring", tracking.exploring) }
 
     private fun accuracyArea(marker: Participant): JSONObject {
         val lat = Math.toRadians(marker.coordinate.latitude); val lon = Math.toRadians(marker.coordinate.longitude)

@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import org.projectdrive.app.ui.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.projectdrive.app.BuildConfig
@@ -12,31 +14,48 @@ import kotlin.math.ceil
 
 @Composable
 fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?, destination: Coordinate?, locationEnabled: Boolean, playback: Boolean, importSession: () -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var joinCode by remember { mutableStateOf("") }
-    var tripId by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var joinCode by rememberSaveable { mutableStateOf("") }
+    var tripId by rememberSaveable { mutableStateOf("") }
     var confirmShare by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     val trip = state.trip
-    Text("Private convoy", style = MaterialTheme.typography.titleLarge)
-    Text(state.message, style = MaterialTheme.typography.bodyMedium)
+    SectionHeading("BETTER TOGETHER","Private convoy",DriveSymbol.Convoy)
+    Text("Good company. Great roads.",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    StatusNote(state.message,active=state.sharing)
     if (state.pendingStop && !state.sharing) Text("Server cleanup pending · local publishing is off", color = MaterialTheme.colorScheme.error)
     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (BuildConfig.DEBUG && BuildConfig.LOCAL_TEST_AUTH && !state.sharing) OutlinedButton(onClick = importSession, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Import local test session") }
     if (!state.signedIn) {
-        Text("Convoys need an authenticated session. Phase 0 uses an isolated local test server; production sign-in is a later milestone.")
+        JourneyCard(modifier=Modifier.fillMaxWidth(),color=MaterialTheme.colorScheme.primaryContainer) {
+            DriveIcon(DriveSymbol.Convoy,modifier=Modifier.size(36.dp),tint=MaterialTheme.colorScheme.primary)
+            Text("Your people, along for the ride.",style=MaterialTheme.typography.titleLarge)
+            Text("Private convoys let a group keep each other in view. You choose when to share your live position, and can stop at any time.")
+        }
+        JourneyCard {
+            DriveIcon(DriveSymbol.Shield,modifier=Modifier.size(24.dp),tint=MaterialTheme.colorScheme.secondary)
+            Text("Sign-in is needed for convoys",style=MaterialTheme.typography.titleMedium)
+            Text(if(BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to try this private test environment." else "Convoy sign-in is not available yet. Maps and local journey recording are ready to use.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         return
     }
     if (trip == null) {
-        Text("Set origin and destination in Navigation. Creating a trip stores its name and chosen endpoints on your server for its members. Manage convoys while parked or as a passenger.")
+        Text("Set the route in Navigation, then bring your people along. Manage your convoy while parked or as a passenger.",style=MaterialTheme.typography.bodyMedium)
+        JourneyCard {
+        Text("Start a convoy",style=MaterialTheme.typography.titleLarge)
+        Text("Creating a trip stores its name and chosen endpoints privately for its members.",style=MaterialTheme.typography.bodySmall)
         OutlinedTextField(name, { name = it.take(120) }, label = { Text("Trip name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Button(onClick = { if (origin != null && destination != null) model.create(name, origin, destination) }, enabled = !state.busy && name.isNotBlank() && origin != null && destination != null, modifier = Modifier.fillMaxWidth()) { Text("Create private trip") }
+        }
+        JourneyCard {
+        Text("Join the journey",style=MaterialTheme.typography.titleLarge)
         OutlinedTextField(joinCode, { joinCode = it.take(100) }, label = { Text("Private invitation code") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Button(onClick = { model.join(joinCode.trim()); joinCode = "" }, enabled = !state.busy && joinCode.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Join trip") }
         OutlinedTextField(tripId, { tripId = it.take(36) }, label = { Text("Existing trip ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedButton(onClick = { model.open(tripId.trim()) }, enabled = !state.busy && tripId.length == 36, modifier = Modifier.fillMaxWidth()) { Text("Open existing trip") }
+        }
     } else {
-        Text(trip.name, style = MaterialTheme.typography.titleMedium)
+        Text(trip.name, style = MaterialTheme.typography.headlineMedium)
         Text("Trip ${trip.status} · ${if (trip.ownerId == state.userId) "owner" else "member"}")
         SelectionContainer { Text(trip.id, style = MaterialTheme.typography.bodySmall) }
         if (state.sharing) {
@@ -63,10 +82,12 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
         }
         Text("Members · ${state.members.size}", style = MaterialTheme.typography.titleMedium)
         state.members.forEach { member ->
+            JourneyCard {
             Text("${member.name} · ${member.id.take(6)}${if (member.id == state.userId) " (you)" else ""} · ${if (member.owner) "owner" else "member"}")
             val marker = state.participants.find { it.id == member.id }
             Text(if (marker == null) "No current shared position" else "${if (marker.stale(state.now)) "STALE" else "Recent"} · ±${ceil(marker.accuracy).toInt()} m · ${marker.age(state.now) / 1000}s ago", style = MaterialTheme.typography.bodySmall)
             if (trip.ownerId == state.userId && !member.owner && trip.status in setOf("planned", "active")) TextButton(onClick = { confirmAction = "Remove ${member.name} from this trip?" to { model.remove(member.id) } }, enabled = !state.busy) { Text("Remove ${member.name}") }
+            }
         }
         state.participants.filter { marker -> state.members.none { it.id == marker.id } }.forEach { marker ->
             Text("Participant ${marker.id.take(6)} · ${if (marker.stale(state.now)) "STALE" else "Recent"} · ±${ceil(marker.accuracy).toInt()} m · ${marker.age(state.now) / 1000}s ago", style = MaterialTheme.typography.bodySmall)

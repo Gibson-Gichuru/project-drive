@@ -1,0 +1,235 @@
+{
+  "version": 8,
+  "name": "Project Drive Kenya \u00b7 Night",
+  "glyphs": "__BASE_URL__/maps/fonts/{fontstack}/{range}",
+  "sources": {
+    "kenya": {
+      "type": "vector",
+      "tiles": [
+        "__BASE_URL__/maps/tiles/{z}/{x}/{y}"
+      ],
+      "minzoom": 0,
+      "maxzoom": 14,
+      "attribution": "<a href=\"https://www.openstreetmap.org/copyright\">\u00a9 OpenStreetMap contributors</a> \u00b7 <a href=\"https://openmaptiles.org/\">\u00a9 OpenMapTiles</a>"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#15251e"
+      }
+    },
+    {
+      "id": "landcover",
+      "type": "fill",
+      "source": "kenya",
+      "source-layer": "landcover",
+      "paint": {
+        "fill-color": "#263e2c",
+        "fill-opacity": 0.65
+      }
+    },
+    {
+      "id": "park",
+      "type": "fill",
+      "source": "kenya",
+      "source-layer": "park",
+      "paint": {
+        "fill-color": "#2a4732",
+        "fill-opacity": 0.7
+      }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "kenya",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": "#20352b",
+        "fill-opacity": 0.5
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "kenya",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#254a53"
+      }
+    },
+    {
+      "id": "waterway",
+      "type": "line",
+      "source": "kenya",
+      "source-layer": "waterway",
+      "paint": {
+        "line-color": "#254a53",
+        "line-width": 1.5
+      }
+    },
+    {
+      "id": "building",
+      "type": "fill",
+      "source": "kenya",
+      "source-layer": "building",
+      "minzoom": 13,
+      "paint": {
+        "fill-color": "#33463a",
+        "fill-outline-color": "#425749"
+      }
+    },
+    {
+      "id": "road-casing",
+      "type": "line",
+      "source": "kenya",
+      "source-layer": "transportation",
+      "filter": [
+        "!=",
+        "class",
+        "rail"
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": "#4c6252",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.5,
+          12,
+          3,
+          16,
+          10
+        ]
+      }
+    },
+    {
+      "id": "roads",
+      "type": "line",
+      "source": "kenya",
+      "source-layer": "transportation",
+      "filter": [
+        "!=",
+        "class",
+        "rail"
+      ],
+      "layout": {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      "paint": {
+        "line-color": [
+          "match",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "motorway",
+            "trunk"
+          ],
+          "#a79160",
+          "primary",
+          "#7f8866",
+          "#31443a"
+        ],
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          6,
+          0.3,
+          12,
+          2,
+          16,
+          7
+        ]
+      }
+    },
+    {
+      "id": "road-labels",
+      "type": "symbol",
+      "source": "kenya",
+      "source-layer": "transportation_name",
+      "minzoom": 12,
+      "layout": {
+        "symbol-placement": "line",
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 11
+      },
+      "paint": {
+        "text-color": "#c6d2bd",
+        "text-halo-color": "#15251e",
+        "text-halo-width": 1.5
+      }
+    },
+    {
+      "id": "places",
+      "type": "symbol",
+      "source": "kenya",
+      "source-layer": "place",
+      "layout": {
+        "text-field": [
+          "coalesce",
+          [
+            "get",
+            "name:en"
+          ],
+          [
+            "get",
+            "name"
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          5,
+          11,
+          14,
+          16
+        ]
+      },
+      "paint": {
+        "text-color": "#d5e1cd",
+        "text-halo-color": "#15251e",
+        "text-halo-width": 1.5
+      }
+    }
+  ]
+}
