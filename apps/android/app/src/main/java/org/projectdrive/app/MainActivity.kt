@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
         convoy = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.ConvoyViewModel::class.java]
         renderer = MapLibreRenderer(this, savedInstanceState, BuildConfig.MAP_SERVER_URL, model::selectPin) { mapExploring = it }
         mapExploring = renderer.exploring
+        if(savedInstanceState==null)openSharedLocation(intent)
         location = AndroidLocationSource(this, { fix ->
             model.onLocation(fix)
             if(!model.state.value.playback)telemetry.onFix(fix)
@@ -110,6 +111,21 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent:android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openSharedLocation(intent)
+    }
+    private fun openSharedLocation(incoming:android.content.Intent) {
+        val text=when(incoming.action) {
+            android.content.Intent.ACTION_VIEW -> incoming.dataString
+            android.content.Intent.ACTION_SEND -> incoming.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString()
+            else -> null
+        }?:return
+        if(telemetry.state.value.recording||convoy.state.value.sharing)model.rejectSharedLocation()
+        else model.acceptSharedText(text)
     }
 
     private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED

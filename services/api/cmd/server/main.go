@@ -43,6 +43,14 @@ func main() {
 	if cfg.NavigationURL != "" {
 		engine = navigation.Valhalla{URL: cfg.NavigationURL}
 	}
+	var places navigation.PlaceSearcher
+	if cfg.PlaceIndexPath != "" {
+		places, err = navigation.LoadGazetteer(cfg.PlaceIndexPath)
+		if err != nil {
+			logger.Error("place index is invalid or unavailable")
+			os.Exit(2)
+		}
+	}
 	var publicKey ed25519.PublicKey
 	if cfg.DevAuthPublicKey != "" {
 		publicKey, err = identity.PublicKey(cfg.Environment, cfg.DevAuthPublicKey)
@@ -77,7 +85,7 @@ func main() {
 	coordinator := tracking.Coordinator{Hub: hub, Base: trips.Store{DB: db}}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey}, Tracking: hub, Telemetry: telemetryStore}),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL, Places: places, PlaceIndexPath: cfg.PlaceIndexPath}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey}, Tracking: hub, Telemetry: telemetryStore}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,

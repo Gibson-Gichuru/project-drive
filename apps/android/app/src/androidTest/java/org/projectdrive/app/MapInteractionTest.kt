@@ -93,7 +93,13 @@ class MapInteractionTest {
                     try { check(instrumentation.uiAutomation.injectInputEvent(motion,true)) } finally { motion.recycle() }
                     SystemClock.sleep(25)
                 }
-                SystemClock.sleep(1800)
+                // Wait for native fling inertia to end before testing that updates leave it alone.
+                var last=camera();var stableSince=SystemClock.elapsedRealtime()
+                waitFor("Map never settled after the native pan") {
+                    val next=camera();val now=SystemClock.elapsedRealtime()
+                    if(delta(last,next)>.000001)stableSince=now
+                    last=next;now-stableSince>900
+                }
             }
             fun pinch() {
                 var bounds=Rect()
@@ -126,7 +132,7 @@ class MapInteractionTest {
             val gestures=java.util.concurrent.atomic.AtomicInteger()
             scenario.onActivity { checkNotNull(map.get()).addOnCameraMoveStartedListener { reason -> if(reason==MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE)gestures.incrementAndGet() } }
 
-            scenario.onActivity{checkNotNull(model).previewRoute()}
+            scenario.onActivity{checkNotNull(model).setOrigin("-1.2864, 36.8200");checkNotNull(model).setDestination("-1.3152, 36.8148");checkNotNull(model).previewRoute()}
             waitFor("Public sample route unavailable"){checkNotNull(model).state.value.route!=null}
             Thread.sleep(1200)
             println("Stage: public preview ready");val overview=camera();pan();val explored=camera()

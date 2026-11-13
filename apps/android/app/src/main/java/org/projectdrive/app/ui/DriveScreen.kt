@@ -1,11 +1,17 @@
 package org.projectdrive.app.ui
 
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,8 +49,16 @@ fun DriveScreen(
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
     useLocation:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, importSession:()->Unit,
 ) {
+    var focusedRequest by rememberSaveable { mutableStateOf(0L) }
+    LaunchedEffect(state.focusRequest) {
+        if(state.focusRequest>0 && focusedRequest!=state.focusRequest) {
+            val coordinate=if(state.searchOrigin) NavigationViewModel.parseCoordinate(state.originText) else state.destination
+            coordinate?.let(renderer::focus)
+            focusedRequest=state.focusRequest
+        }
+    }
     SideEffect {
-        renderer.render(state.route,state.destination,state.simulatedPosition?:state.fix?.coordinate,state.playback,state.playback||state.guiding,group.participants.filter{it.id!=group.userId},group.now)
+        renderer.render(state.route,state.destination,state.simulatedPosition?:state.fix?.coordinate,state.playback,state.playback||state.guiding,group.participants.filter{it.id!=group.userId},group.now,NavigationViewModel.parseCoordinate(state.originText))
     }
     DriveContent(
         state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,
@@ -73,10 +87,17 @@ fun DriveContent(
     var toolsOpen by rememberSaveable { mutableStateOf(false) }
     val panelState=rememberSaveableStateHolder()
     val active=state.guiding||state.playback
+    val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
+    var openedRequest by rememberSaveable { mutableStateOf(0L) }
+    LaunchedEffect(state.plannerRequest) {
+        if(state.plannerRequest>0 && openedRequest!=state.plannerRequest) {
+            tab=DriveTab.Navigation;toolsOpen=true;openedRequest=state.plannerRequest
+        }
+    }
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         mapContent(Modifier.fillMaxSize())
         Column(Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).padding(16.dp).widthIn(max=380.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Surface(shape=RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.96f),shadowElevation=3.dp) {
+            if(!landscape) Surface(shape=RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.96f),shadowElevation=3.dp) {
                 Row(Modifier.padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                     DriveIcon(DriveSymbol.Road,tint=MaterialTheme.colorScheme.primary)
                     Column {
@@ -92,7 +113,8 @@ fun DriveContent(
             if(sharing) Button(onClick=stopSharing,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error),modifier=Modifier.heightIn(min=48.dp)) { Text("Stop sharing now") }
         }
         Column(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal)).padding(horizontal=16.dp,vertical=10.dp).widthIn(max=560.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
+                if(landscape) FilledTonalButton(onClick={toolsOpen=true},modifier=Modifier.heightIn(min=48.dp).padding(end=8.dp)) { Text("Tools") }
                 Button(onClick=recenter,modifier=Modifier.heightIn(min=48.dp),colors=ButtonDefaults.buttonColors(containerColor=if(exploring)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,contentColor=if(exploring)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary),elevation=ButtonDefaults.buttonElevation(defaultElevation=3.dp)) {
                     DriveIcon(DriveSymbol.Locate,tint=if(exploring)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp));Text("Recenter")
@@ -109,10 +131,10 @@ fun DriveContent(
                     else DriveIcon(DriveSymbol.Chevron,tint=MaterialTheme.colorScheme.primary)
                 }
             }
-            Surface(shape=RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=4.dp) {
+            if(!landscape) Surface(shape=RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=4.dp) {
                 DriveTabs(tab,{tab=it;toolsOpen=true},Modifier.fillMaxWidth())
             }
-            Surface(shape=RoundedCornerShape(8.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.94f)) {
+            Surface(modifier=Modifier.padding(end=40.dp),shape=RoundedCornerShape(8.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.94f)) {
                 Text("© OpenStreetMap contributors · © OpenMapTiles",Modifier.padding(horizontal=8.dp,vertical=2.dp),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -152,12 +174,11 @@ private fun DriveTabs(selected:DriveTab,select:(DriveTab)->Unit,modifier:Modifie
 
 @Composable
 private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,recording:Boolean,useLocation:()->Unit,stopLocation:()->Unit,backToMap:()->Unit) {
-    var coordinates by rememberSaveable { mutableStateOf(false) }
     val route=state.route
     val active=state.guiding||state.playback
     if(route==null) {
         SectionHeading("THE OPEN ROAD", "Go somewhere good.",DriveSymbol.Compass)
-        Text(if(state.destinationText=="-1.3152, 36.8148") "Try the Nairobi sample, or hold the map to choose your own destination." else "Destination selected. Preview the road ahead when you're ready.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Find a place, open a shared location, or hold the map to choose a destination.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }else {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
             Text(if(state.playback) "SIMULATED PREVIEW" else if(state.guiding) "ON THE ROAD" else "THE ROAD AHEAD",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.secondary)
@@ -188,14 +209,8 @@ private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,reco
         Text("Finding your route…",style=MaterialTheme.typography.bodySmall)
     }
     if(route==null) {
-        TextButton(onClick={coordinates=!coordinates},contentPadding=PaddingValues(horizontal=0.dp)) {
-            DriveIcon(DriveSymbol.Edit,modifier=Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(8.dp));Text(if(coordinates) "Hide route coordinates" else "Edit route coordinates")
-        }
-        if(coordinates) {
-            OutlinedTextField(state.originText,model::setOrigin,label={Text("From · latitude, longitude")},singleLine=true,modifier=Modifier.fillMaxWidth())
-            OutlinedTextField(state.destinationText,model::setDestination,label={Text("To · latitude, longitude")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        }
-        Button(onClick={model.previewRoute();backToMap()},enabled=!state.loading,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) { Text("Preview route");Spacer(Modifier.width(10.dp));DriveIcon(DriveSymbol.Arrow,tint=MaterialTheme.colorScheme.onPrimary) }
+        RoutePlaces(state,model)
+        Button(onClick={model.previewRoute();backToMap()},enabled=!state.loading&&state.originText.isNotBlank()&&state.destination!=null,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) { Text("Preview route");Spacer(Modifier.width(10.dp));DriveIcon(DriveSymbol.Arrow,tint=MaterialTheme.colorScheme.onPrimary) }
     }else if(active) {
         Button(onClick=model::stopGuidance,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error)) { DriveIcon(DriveSymbol.Pause,tint=MaterialTheme.colorScheme.onError);Spacer(Modifier.width(8.dp));Text("Stop guidance") }
         Text(if(state.playback) "Simulated route playback · no live location is shared." else "Explore the map freely. Tap Recenter to follow your position again.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -211,4 +226,37 @@ private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,reco
     }
     if(route==null || active) TextButton(onClick=useLocation) { DriveIcon(DriveSymbol.Locate,modifier=Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary);Spacer(Modifier.width(8.dp));Text("Use my location") }
     if(state.gpsWanted) TextButton(onClick=stopLocation) { Text("Turn location off") }
+}
+
+
+@Composable
+private fun RoutePlaces(state:NavigationState,model:NavigationViewModel) {
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick={model.searchFrom(true)},modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
+            Text("From",Modifier.width(52.dp),style=MaterialTheme.typography.labelMedium)
+            Text(state.originLabel.ifBlank{"Choose a start"},Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis)
+            DriveIcon(DriveSymbol.Edit,tint=MaterialTheme.colorScheme.primary)
+        }
+        OutlinedButton(onClick={model.searchFrom(false)},modifier=Modifier.fillMaxWidth().heightIn(min=52.dp)) {
+            Text("To",Modifier.width(52.dp),style=MaterialTheme.typography.labelMedium)
+            Text(state.destinationLabel.ifBlank{"Where to?"},Modifier.weight(1f),maxLines=1,overflow=TextOverflow.Ellipsis)
+            DriveIcon(DriveSymbol.Edit,tint=MaterialTheme.colorScheme.primary)
+        }
+        Text(if(state.searchOrigin)"Find your starting point" else "Find your destination",style=MaterialTheme.typography.titleSmall)
+        OutlinedTextField(state.searchQuery,model::setSearchQuery,label={Text("Place name or map link")},placeholder={Text("e.g. Nakuru, a landmark, or a shared link")},
+            singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={model.searchPlaces()}))
+        Button(onClick=model::searchPlaces,enabled=!state.searching&&state.searchQuery.isNotBlank(),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+            Text(if(state.searching)"Finding places…" else "Search places / open link")
+        }
+        state.searchError?.let { Text(it,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error) }
+        state.places.forEach { place ->
+            Surface(onClick={model.selectPlace(place)},shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text(place.name,style=MaterialTheme.typography.titleSmall)
+                    Text("${place.kind.replace('_',' ')} · ${place.locality}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Text("Place search covers named towns, roads and landmarks in the Kenya OSM snapshot. Check the selected pin before starting.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }

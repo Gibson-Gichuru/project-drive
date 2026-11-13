@@ -80,6 +80,8 @@ spec:
               value: http://project-drive-tiles:3000
             - name: NAVIGATION_URL
               value: http://project-drive-router:8002
+            - name: PLACE_INDEX_PATH
+              value: /map-data/kenya-places-v1.json
           readinessProbe:
             httpGet:
               path: /readyz
@@ -95,12 +97,21 @@ spec:
           resources:
             requests:
               cpu: 25m
-              memory: 32Mi
+              memory: 64Mi
             limits:
               cpu: 250m
-              memory: 128Mi
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          volumeMounts:
+            - name: places
+              mountPath: /map-data
+              subPath: releases/kenya-search-90ce3f74
+              readOnly: true
+      volumes:
+        - name: places
+          persistentVolumeClaim:
+            claimName: project-drive-map-data

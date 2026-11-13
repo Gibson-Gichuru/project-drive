@@ -16,11 +16,14 @@ import (
 )
 
 type NavigationOptions struct {
-	Engine  navigation.Engine
-	TileURL string
+	Engine         navigation.Engine
+	TileURL        string
+	Places         navigation.PlaceSearcher
+	PlaceIndexPath string
 }
 
 func registerNavigation(mux *http.ServeMux, options NavigationOptions) {
+	registerPlaces(mux, options)
 	mux.HandleFunc("POST /v1/navigation/route", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if options.Engine == nil {

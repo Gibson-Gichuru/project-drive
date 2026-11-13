@@ -15,9 +15,13 @@ import org.projectdrive.app.core.location.preferredFix
 import org.projectdrive.app.core.navigation.*
 
 data class NavigationState(
-    val originText: String = "-1.2864, 36.8200",
-    val destinationText: String = "-1.3152, 36.8148",
-    val destination: Coordinate = Coordinate(-1.3152, 36.8148),
+    val originText: String = "",
+    val destinationText: String = "",
+    val destination: Coordinate? = null,
+    val originLabel:String="", val destinationLabel:String="",
+    val searchQuery:String="", val searchOrigin:Boolean=false, val searching:Boolean=false,
+    val places:List<Place> = emptyList(),val searchError:String?=null,
+    val plannerRequest:Long=0, val focusRequest:Long=0,
     val route: Route? = null, val loading: Boolean = false, val error: String? = null,
     val gpsWanted: Boolean = false, val fix: LocationFix? = null,
     val locationStatus: String = "Location off · map preview available",
@@ -25,10 +29,13 @@ data class NavigationState(
     val simulatedPosition: Coordinate? = null, val progress: Progress? = null,
 )
 
-class NavigationViewModel : ViewModel() {
+class NavigationViewModel(private val placeSearch:PlaceSearch=RemotePlaceSearch(BuildConfig.MAP_SERVER_URL)) : ViewModel() {
     private val engine: NavigationEngine = RemoteNavigationEngine(BuildConfig.MAP_SERVER_URL)
     private val mutable = MutableStateFlow(NavigationState())
     val state = mutable.asStateFlow()
+    private val links=MapLinkResolver()
+    private var searchJob:Job?=null
+    private var searchGeneration=0L
     private var routeJob: Job? = null
     private var playbackJob: Job? = null
     private var useNextFixAsOrigin = false
@@ -51,21 +58,74 @@ class NavigationViewModel : ViewModel() {
         mutable.update { it.copy(route = null, loading = false, error = null) }
     }
     fun editRoute() = clearRoute()
-    fun setOrigin(text: String) { clearRoute(); mutable.update { it.copy(originText = text) } }
-    fun setDestination(text: String) { clearRoute(); mutable.update { it.copy(destinationText = text) } }
+    fun setOrigin(text: String) { useNextFixAsOrigin=false;clearRoute(); mutable.update { it.copy(originText = text,originLabel="Selected start") } }
+    fun setDestination(text: String) { clearRoute(); mutable.update { it.copy(destinationText = text,destinationLabel="Selected destination") } }
     fun selectPin(coordinate: Coordinate) {
         if (mutable.value.guiding || mutable.value.playback) return
         clearRoute()
-        mutable.update { it.copy(destination = coordinate, destinationText = "${coordinate.latitude}, ${coordinate.longitude}") }
+        mutable.update { it.copy(destination = coordinate, destinationText = "${coordinate.latitude}, ${coordinate.longitude}",destinationLabel="Map pin",searchError=null) }
     }
 
+    fun searchFrom(origin:Boolean) {
+        searchJob?.cancel();searchGeneration++
+        mutable.update{it.copy(searchOrigin=origin,searchQuery="",places=emptyList(),searchError=null,searching=false)}
+    }
+    fun setSearchQuery(query:String) {
+        searchJob?.cancel();searchGeneration++
+        mutable.update{it.copy(searchQuery=query.take(4096),places=emptyList(),searchError=null,searching=false)}
+    }
+    fun searchPlaces() {
+        val query=mutable.value.searchQuery.trim()
+        if(query.startsWith("geo:")||query.contains("https://")||query.contains("http://")) { acceptSharedText(query,mutable.value.searchOrigin);return }
+        if(query.length !in 2..120) {mutable.update{it.copy(searchError="Enter a place name between 2 and 120 characters.")};return}
+        searchJob?.cancel();val generation=++searchGeneration
+        mutable.update{it.copy(searching=true,searchError=null,places=emptyList())}
+        searchJob=viewModelScope.launch {
+            try {
+                val results=placeSearch.search(query)
+                if(generation==searchGeneration)mutable.update{it.copy(places=results,searching=false,searchError=if(results.isEmpty())"No matching name in the Kenya map data. Try a nearby landmark or choose a map pin." else null)}
+            } catch(error:CancellationException){throw error}
+            catch(_:Exception){if(generation==searchGeneration)mutable.update{it.copy(searching=false,searchError="Place search is unavailable. Retry when connected, or choose a map pin.")}}
+        }
+    }
+    fun selectPlace(place:Place) {
+        if(mutable.value.guiding||mutable.value.playback) return
+        searchJob?.cancel();searchGeneration++;if(mutable.value.searchOrigin)useNextFixAsOrigin=false;clearRoute()
+        mutable.update { current ->
+            if(current.searchOrigin)current.copy(originText="${place.coordinate.latitude}, ${place.coordinate.longitude}",originLabel=place.name,places=emptyList(),searchQuery="",searching=false,searchError=null,focusRequest=current.focusRequest+1)
+            else current.copy(destination=place.coordinate,destinationText="${place.coordinate.latitude}, ${place.coordinate.longitude}",destinationLabel=place.name,places=emptyList(),searchQuery="",searching=false,searchError=null,focusRequest=current.focusRequest+1)
+        }
+    }
+    fun rejectSharedLocation() {mutable.update{it.copy(error="Stop guidance, recording and sharing before opening another destination.")}}
+    fun acceptSharedText(text:String,origin:Boolean=false) {
+        if(mutable.value.guiding||mutable.value.playback){rejectSharedLocation();return}
+        searchJob?.cancel();val generation=++searchGeneration
+        mutable.update{it.copy(searching=true,searchError=null,plannerRequest=it.plannerRequest+1)}
+        searchJob=viewModelScope.launch {
+            try {
+                when(val result=links.resolve(text)) {
+                    is MapLink.Pin -> if(generation==searchGeneration){
+                        if(origin)useNextFixAsOrigin=false
+                        clearRoute()
+                        mutable.update {
+                            if(origin)it.copy(originText="${result.coordinate.latitude}, ${result.coordinate.longitude}",originLabel=result.label,searching=false,searchOrigin=true,searchQuery="",places=emptyList(),focusRequest=it.focusRequest+1)
+                            else it.copy(destination=result.coordinate,destinationText="${result.coordinate.latitude}, ${result.coordinate.longitude}",destinationLabel=result.label,searching=false,searchOrigin=false,searchQuery="",places=emptyList(),focusRequest=it.focusRequest+1)
+                        }
+                    }
+                    is MapLink.Search -> if(generation==searchGeneration){mutable.update{it.copy(searchQuery=result.query,searchOrigin=origin,searching=false)};searchPlaces()}
+                    else -> if(generation==searchGeneration)mutable.update{it.copy(searching=false,searchError="This link does not expose a usable location. Share a full location link, search its place name, or choose a map pin.")}
+                }
+            }catch(error:CancellationException){throw error}
+            catch(_:Exception){if(generation==searchGeneration)mutable.update{it.copy(searching=false,searchError="Could not open that map link. Check your connection, or search its place name.")}}
+        }
+    }
     fun previewRoute() {
         routeJob?.cancel(); stopGuidance()
         val input = mutable.value
         val origin = parseCoordinate(input.originText)
         val destination = parseCoordinate(input.destinationText)
         if (origin == null || destination == null) {
-            mutable.update { it.copy(error = "Enter latitude, longitude for each point, or long-press the map for a destination.") }; return
+            mutable.update { it.copy(error = "Choose a start and destination by place search, your location, or a map pin.") }; return
         }
         mutable.update { it.copy(loading = true, error = null, route = null, destination = destination) }
         routeJob = viewModelScope.launch {
@@ -96,7 +156,7 @@ class NavigationViewModel : ViewModel() {
         if (selected !== fix) return
         if (useNextFixAsOrigin && fix.canGuide(SystemClock.elapsedRealtime())) {
             clearRoute(); useNextFixAsOrigin = false
-            mutable.update { it.copy(originText = "${fix.coordinate.latitude}, ${fix.coordinate.longitude}") }
+            mutable.update { it.copy(originText = "${fix.coordinate.latitude}, ${fix.coordinate.longitude}",originLabel="My location") }
         }
         mutable.update { current -> current.copy(
             fix = fix,

@@ -6,7 +6,7 @@ This is an acceptance record template, not a statement that tests have passed. M
 
 - `make ci`: Go validation/race tests, PostGIS migration/idempotence/health, vulnerability scan, Compose/Kustomize validation, Android build, unit tests and lint. Run without paid credentials.
 - Build the regional dataset as documented in `navigation-evaluation.md`, and run `scripts/navigation-smoke.py BASE_URL` against both local and homelab APIs.
-- Physical Android: install over the explicitly selected paired Wi-Fi ADB transport; check attribution, map roads/labels, map-pin and coordinate selection, preview fit, simulated playback, rotation, background/resume, server disconnection/recovery, location off/denied/approximate/stale behavior and process restart. Preserve the user's rotation setting and permission preferences. Do not commit device identifiers, private addresses, pairing codes, screenshots of personal positions or GPS traces.
+- Physical Android: install over the explicitly selected paired Wi-Fi ADB transport; check attribution, map roads/labels, map-pin, named-place and shared-link selection, preview fit, simulated playback, rotation, background/resume, server disconnection/recovery, location off/denied/approximate/stale behavior and process restart. Preserve the user's rotation setting and permission preferences. Do not commit device identifiers, private addresses, pairing codes, screenshots of personal positions or GPS traces.
 
 Run the stationary phone checker after explicitly building the loopback debug variant from [the access runbook](homelab-access.md), installing it, and configuring the loopback server forward:
 
@@ -14,7 +14,7 @@ Run the stationary phone checker after explicitly building the loopback debug va
 scripts/android-navigation-check.py --serial "$ANDROID_SERIAL"
 ```
 
-It uses only the fixed public sample and restarts the app with location off, so run it **before** preparing a personal journey. It checks actual window flags, cached-route playback, disconnection/recovery and lifecycle state; it restores rotation and the server reverse. It does not inject mock GPS, verify a real journey, or create an offline map pack.
+It explicitly selects public Nairobi fixture names through search and restarts the app with location off, so run it **before** preparing a personal journey. It checks actual window flags, cached-route playback, disconnection/recovery and lifecycle state; it restores rotation and the server reverse. It does not inject mock GPS, verify a real journey, or create an offline map pack.
 
 ## M1 field acceptance — deferred, still required
 

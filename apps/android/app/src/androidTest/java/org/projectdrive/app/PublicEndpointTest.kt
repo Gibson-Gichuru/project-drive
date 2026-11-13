@@ -10,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.projectdrive.app.core.navigation.Coordinate
 import org.projectdrive.app.core.navigation.RemoteNavigationEngine
+import org.projectdrive.app.core.navigation.RemotePlaceSearch
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.CountDownLatch
@@ -33,6 +34,15 @@ class PublicEndpointTest {
                 connection.inputStream.use { assertTrue(it.read() >= 0) }
             } finally { connection.disconnect() }
         }
+        val places=RemotePlaceSearch(BuildConfig.MAP_SERVER_URL).search("Nakuru")
+        assertTrue(places.any {it.name.equals("Nakuru",ignoreCase=true)})
+        val index=URL(BuildConfig.MAP_SERVER_URL+"/maps/places-index").openConnection() as HttpURLConnection
+        try {
+            index.connectTimeout=10000;index.readTimeout=15000
+            assertEquals(200,index.responseCode)
+            assertTrue(index.contentType.startsWith("application/json"))
+            index.inputStream.use {assertTrue(it.read()>=0)}
+        }finally{index.disconnect()}
         val client=OkHttpClient.Builder().callTimeout(20,TimeUnit.SECONDS).build()
         try {
             client.newCall(Request.Builder().url(BuildConfig.API_SERVER_URL+"/v1/trips/00000000-0000-4000-8000-000000000001").build()).execute().use {

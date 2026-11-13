@@ -29,6 +29,8 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     private var map: MapLibreMap? = null
     private var route: Route? = null
     private var destination: Coordinate? = null
+    private var origin: Coordinate? = null
+    private var requestedFocus:Coordinate?=null
     private var position: Coordinate? = null
     private var simulated = false
     private var participants = emptyList<Participant>()
@@ -57,8 +59,11 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             ready.uiSettings.isAttributionEnabled = true
             // Keep native attribution above the system gesture area on an edge-to-edge map.
             val density = mapView.resources.displayMetrics.density
-            ready.uiSettings.setLogoMargins((8*density).toInt(),0,0,(24*density).toInt())
-            ready.uiSettings.setAttributionMargins((92*density).toInt(),0,0,(24*density).toInt())
+            ready.uiSettings.isLogoEnabled=false
+            ready.uiSettings.setAttributionGravity(android.view.Gravity.BOTTOM or android.view.Gravity.END)
+            ready.uiSettings.setAttributionMargins(0,0,(8*density).toInt(),(24*density).toInt())
+            ready.uiSettings.setAttributionTintColor(android.graphics.Color.parseColor(if(night)"#a3d7b6" else "#205744"))
+            ready.uiSettings.setCompassMargins(0,(56*density).toInt(),(16*density).toInt(),0)
             ready.uiSettings.setAllGesturesEnabled(true)
             ready.addOnCameraMoveStartedListener { reason ->
                 if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
@@ -68,9 +73,11 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             }
             ready.addOnMapLongClickListener { point -> onPin(Coordinate(point.latitude, point.longitude)); true }
             ready.setStyle(Style.Builder().fromJson(json)) { style ->
-                listOf("route", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
+                listOf("route", "origin", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
                 style.addLayer(LineLayer("route-casing", "route").withProperties(lineColor(if(night) "#10281f" else "#ffffff"), lineWidth(9f), lineOpacity(0.95f), lineCap("round"), lineJoin("round")))
                 style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(if(night) "#97d7ac" else "#236653"), lineWidth(5f), lineOpacity(1f), lineCap("round"), lineJoin("round")))
+                style.addLayer(CircleLayer("origin-dot","origin").withProperties(circleColor("#205744"),circleRadius(6f),circleStrokeColor("#ffffff"),circleStrokeWidth(2f)))
+                style.addLayer(SymbolLayer("origin-label","origin").withProperties(textField("Start"),textFont(arrayOf("Noto Sans Regular")),textSize(12f),textColor("#205744"),textHaloColor("#ffffff"),textHaloWidth(2f),textOffset(arrayOf(0f,-1.3f))))
                 style.addLayer(CircleLayer("destination-dot", "destination").withProperties(circleColor("#c15c45"), circleRadius(7f), circleStrokeColor("#ffffff"), circleStrokeWidth(2f)))
                 style.addLayer(CircleLayer("position-dot", "position").withProperties(circleColor("#2468c6"), circleRadius(9f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
                 style.addLayer(FillLayer("convoy-accuracy-area", "convoy-accuracy").withProperties(fillColor("#087f5b"), fillOpacity(0.12f)))
@@ -84,7 +91,8 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         }
     }
 
-    fun render(route: Route?, destination: Coordinate, position: Coordinate?, simulated: Boolean, follow: Boolean, participants: List<Participant> = emptyList(), now: Long = 0) {
+    fun render(route: Route?, destination: Coordinate?, position: Coordinate?, simulated: Boolean, follow: Boolean, participants: List<Participant> = emptyList(), now: Long = 0, origin:Coordinate?=null) {
+        this.origin=origin
         this.participants = participants; this.now = now
         this.route = route
         this.destination = destination
@@ -106,9 +114,16 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         val areas = JSONArray().also { list -> participants.filter { !it.expired(now) }.forEach { list.put(accuracyArea(it)) } }
         style.getSourceAs<GeoJsonSource>("convoy-accuracy")?.setGeoJson(JSONObject().put("type", "FeatureCollection").put("features", areas).toString())
         style.getSourceAs<GeoJsonSource>("route")?.setGeoJson(route?.let { line(it.geometry) } ?: emptyCollection)
+        style.getSourceAs<GeoJsonSource>("origin")?.setGeoJson(origin?.let { point(it) } ?: emptyCollection)
         style.getSourceAs<GeoJsonSource>("destination")?.setGeoJson(destination?.let { point(it) } ?: emptyCollection)
         style.getSourceAs<GeoJsonSource>("position")?.setGeoJson(position?.let { point(it) } ?: emptyCollection)
         style.getLayerAs<CircleLayer>("position-dot")?.setProperties(circleColor(if (simulated) "#8e4ab8" else "#2468c6"))
+    }
+
+    fun focus(coordinate:Coordinate) {
+        requestedFocus=coordinate
+        tracking.gesture();onExplorationChanged(true)
+        positionCamera()
     }
 
     fun recenter() {
@@ -119,7 +134,12 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
 
     private fun positionCamera(force: Boolean = false, fallback: Boolean = false) {
         val ready = map ?: return
-        if (ready.style == null || tracking.exploring || mapView.width == 0 || mapView.height == 0) return
+        if (ready.style == null || mapView.width == 0 || mapView.height == 0) return
+        requestedFocus?.let { point ->
+            ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(point.latitude,point.longitude),14.0))
+            requestedFocus=null
+        }
+        if(tracking.exploring)return
         val currentPosition = position
         if (tracking.following && currentPosition == null && !force) return
         if (tracking.following && currentPosition != null) {
@@ -134,8 +154,12 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             route?.let { current ->
                 if (force || fitted !== current || wasFollowing) {
                     val bounds = LatLngBounds.Builder().includes(current.geometry.map { LatLng(it.latitude, it.longitude) }).build()
-                    val padding = (40 * mapView.resources.displayMetrics.density).toInt().coerceAtMost(minOf(mapView.width, mapView.height) / 4)
-                    ready.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding))
+                    val density=mapView.resources.displayMetrics.density
+                    val landscape=mapView.width>mapView.height
+                    val side=(24*density).toInt().coerceAtMost(mapView.width/6)
+                    val top=((if(landscape)70 else 140)*density).toInt().coerceAtMost(mapView.height/4)
+                    val bottom=((if(landscape)180 else 240)*density).toInt().coerceAtMost(mapView.height*45/100)
+                    ready.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds,side,top,side,bottom))
                     fitted = current
                 }
                 return

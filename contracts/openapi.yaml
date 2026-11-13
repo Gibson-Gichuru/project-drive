@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.6.0
+  version: 0.7.0
   description: Phase 0 private developer API. Trip identities are signed offline, expire within 15 minutes and are
     enabled only in explicit local/test environments. Trip endpoints return 401 when auth is disabled (including
-    homelab). Navigation remains the private M1 spike. M3 streams require active membership and explicit sharing.
+    homelab). Navigation/maps/search are public prototype endpoints through the owner-approved HTTPS tunnel; operational endpoints stay private. M3 streams require active membership and explicit sharing.
     Live positions are ephemeral and single-instance.
 servers:
 - url: http://localhost:8080
@@ -73,6 +73,55 @@ paths:
           description: No drivable route in the regional graph
         '503':
           description: Navigation is not configured or upstream service is unavailable
+  /v1/navigation/search:
+    post:
+      operationId: searchPlaces
+      summary: Search names in the self-hosted Kenya OSM gazetteer
+      description: Public prototype map search. No device location is required. Request body and query are not logged; responses use no-store. Maximum body 1024 bytes, 2–120 query characters, up to 10 ranked places.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [query]
+              properties:
+                query: {type: string, minLength: 2, maxLength: 120}
+      responses:
+        '200':
+          description: Ranked OSM place matches; empty places array means no match
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [places, region, attribution]
+                properties:
+                  region: {type: string, const: Kenya}
+                  attribution: {type: string}
+                  places:
+                    type: array
+                    maxItems: 10
+                    items:
+                      type: object
+                      required: [id, name, kind, locality, latitude, longitude]
+                      properties:
+                        id: {type: string}
+                        name: {type: string}
+                        kind: {type: string}
+                        locality: {type: string}
+                        latitude: {type: number, minimum: -90, maximum: 90}
+                        longitude: {type: number, minimum: -180, maximum: 180}
+        '400': {description: Invalid or oversized query}
+        '429': {description: Concurrent search capacity reached; retry shortly}
+        '503': {description: Search index not configured or temporarily unavailable}
+  /maps/places-index:
+    get:
+      operationId: downloadPlaceIndex
+      summary: Download the public ODbL-derived regional name database
+      responses:
+        '200': {description: Machine-readable JSON index with source hash and license URL}
+        '404': {description: No regional index configured}
   /maps/tiles/{z}/{x}/{y}:
     get:
       operationId: vectorTile

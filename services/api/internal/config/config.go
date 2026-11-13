@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"path/filepath"
 	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/tracking"
 )
@@ -14,6 +15,7 @@ type Config struct {
 	Environment      string
 	TileURL          string
 	NavigationURL    string
+	PlaceIndexPath   string
 	DevAuthPublicKey string
 	Tracking         tracking.Limits
 }
@@ -25,6 +27,7 @@ func Load() (Config, error) {
 		Environment:      valueOr("APP_ENV", "local"),
 		TileURL:          os.Getenv("MAP_TILE_URL"),
 		NavigationURL:    os.Getenv("NAVIGATION_URL"),
+		PlaceIndexPath:   os.Getenv("PLACE_INDEX_PATH"),
 		DevAuthPublicKey: os.Getenv("DEV_AUTH_PUBLIC_KEY"),
 	}
 	var err error
@@ -46,6 +49,9 @@ func Load() (Config, error) {
 	}
 	if (cfg.TileURL == "") != (cfg.NavigationURL == "") {
 		return Config{}, errors.New("MAP_TILE_URL and NAVIGATION_URL must be configured together")
+	}
+	if cfg.PlaceIndexPath != "" && (cfg.NavigationURL == "" || !filepath.IsAbs(cfg.PlaceIndexPath)) {
+		return Config{}, errors.New("PLACE_INDEX_PATH requires the map stack and an absolute index path")
 	}
 	if cfg.TileURL != "" {
 		if cfg.Environment == "production" {

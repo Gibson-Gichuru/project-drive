@@ -72,7 +72,7 @@ scripts/navigation-smoke.py http://127.0.0.1:8080
 
 The default Android build uses `https://drive-api.ripples.boo` for maps and API traffic through the existing homelab tunnel. No workstation forwarding is needed. Private trip/telemetry operations remain unavailable there until production sign-in is implemented. For isolated local testing, explicitly build with `-PmapServerUrl=http://127.0.0.1:18081 -PapiServerUrl=http://127.0.0.1:18082` and configure device forwards. See [HTTPS setup, checks and recovery](docs/homelab-access.md).
 
-Use “Preview route” for fixed coordinates or a long-pressed map destination; “Play preview” is explicitly simulated. Use “Use my location” and then “Start guidance” for a fresh foreground fix. No account is required for the developer spike. This is not a production navigation release.
+Choose From and To through place search, a shared map link, your location or a map pin, then use “Preview route”; “Play preview” is explicitly simulated. Use “Use my location” and then “Start guidance” for a fresh foreground fix. No account is required for the developer spike. This is not a production navigation release.
 
 The API health endpoints are `/healthz` (process liveness) and `/readyz` (database-aware readiness). The OpenAPI and WebSocket envelope contracts are under `contracts/`.
 
@@ -102,3 +102,10 @@ The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated 
 ## M5 local telemetry
 
 Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and the remaining physical journey gate. The owner scheduled physical testing for 14 November 2026; see [the field checklist](docs/device-tests/2026-11-14-field.md).
+
+## Map-first navigation UI
+
+The app uses a full-screen map with on-demand Navigation, Convoy and Journal tools,
+Poppins typography, day/night styling, free pan/zoom and Recenter. From and To start
+empty; choose places by name, location permission, map pin or shared map link. See
+[UI evidence](docs/ui-ux-refresh.md) and [place search and links](docs/place-search.md).

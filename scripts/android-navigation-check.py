@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Stationary M1 checks on an authorized phone; uses only the app's public sample.
+"""Stationary M1 checks on an authorized phone; chooses public place names explicitly through search.
 
-Requires an installed debug APK and working tcp:18081 reverse. Restarts the app,
+Requires a loopback debug APK, the deployed Kenya place index, and working tcp:18081 reverse. Restarts the app,
 leaves location collection off, restores rotation and the reverse on failure.
 No screenshots, GPS coordinates, hierarchy dumps or device IDs are retained.
 This is NOT a physical GPS journey or an offline-map-pack test.
@@ -104,43 +104,71 @@ try:
     wait_text('© OpenStreetMap contributors', prefix=True)
     check_screen_awake(False)
     passed('fresh process defaults to location off; attribution visible; ordinary screen timeout retained')
+    tap('Navigation')
+    def select_named_place(placeholder, query):
+        tap(placeholder)
+        field = next(n for n in nodes() if n.get('class') == 'android.widget.EditText')
+        bounds = [int(x) for x in re.findall(r'\d+', field.get('bounds', ''))]
+        shell('input', 'tap', str((bounds[0]+bounds[2])//2), str((bounds[1]+bounds[3])//2))
+        shell('input', 'text', query.replace(' ', '%s'))
+        shell('input', 'keyevent', 'KEYCODE_BACK')
+        tap('Search places / open link')
+        deadline=time.monotonic()+25
+        while time.monotonic()<deadline:
+            matches=[n for n in nodes() if n.get('text')==query]
+            if matches:
+                tap(query)
+                return
+            shell('input','swipe','500','1900','500','1000','300')
+            time.sleep(.3)
+        raise AssertionError('Public place fixture missing from regional search')
+    select_named_place('Choose a start', 'Nairobi')
+    select_named_place('Where to?', 'Nairobi West')
+    tap('Navigation')
     tap('Preview route')
+    wait_text('Your route is ready')
+    tap('Navigation')
     wait_text('Start guidance')
     passed('public sample route loads through self-hosted gateway')
     tap('Start guidance')
     wait_text('Use your location and wait', prefix=True)
     passed('GPS guidance refuses to start without a fresh accurate fix')
     tap('Play preview')
-    wait_text('PREVIEW PLAYBACK', prefix=True)
-    wait_text('Stop guidance')
+    wait_text('Simulated preview', prefix=True)
+    wait_text('Stop')
     check_screen_awake(True)
     passed('playback explicitly labeled simulated; screen stays on')
     run('reverse', '--remove', 'tcp:18081')
     time.sleep(4)
-    wait_text('PREVIEW PLAYBACK', prefix=True)
-    wait_text('Stop guidance')
+    wait_text('Simulated preview', prefix=True)
+    wait_text('Stop')
     passed('loaded route playback remains available without server; no live-GPS claim')
-    tap('Stop guidance')
+    tap('Stop')
     check_screen_awake(False)
+    tap('Navigation')
     tap('Preview route')
     wait_text('Route unavailable.', prefix=True)
     passed('new route request fails clearly while server is disconnected')
     run('reverse', 'tcp:18081', 'tcp:18081')
+    tap('Navigation')
     tap('Preview route')
+    wait_text('Your route is ready')
+    tap('Navigation')
     wait_text('Start guidance')
     passed('route calculation recovers when private connection returns')
     tap('Play preview')
     shell('settings', 'put', 'system', 'accelerometer_rotation', '0')
     shell('settings', 'put', 'system', 'user_rotation', '1')
-    wait_text('PREVIEW PLAYBACK', prefix=True)
+    wait_text('Simulated preview', prefix=True)
     check_screen_awake(True)
     shell('settings', 'put', 'system', 'user_rotation', '0')
-    wait_text('PREVIEW PLAYBACK', prefix=True)
+    wait_text('Simulated preview', prefix=True)
     check_screen_awake(True)
     passed('rotation preserves loaded route/playback and awake state')
     shell('input', 'keyevent', 'KEYCODE_HOME')
     time.sleep(1)
     launch()
+    tap('Navigation')
     wait_text('Start guidance')
     check_screen_awake(False)
     passed('background/resume stops guidance/playback and restores normal screen timeout')
