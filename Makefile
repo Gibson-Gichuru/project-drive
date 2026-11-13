@@ -4,7 +4,7 @@ ANDROID_HOME ?= $(if $(ANDROID_SDK_ROOT),$(ANDROID_SDK_ROOT),$(HOME)/Android/Sdk
 export JAVA_HOME ANDROID_HOME
 COMPOSE := docker compose -f infra/compose.yaml --env-file .env
 
-.PHONY: setup doctor ci test api-test integration security android-build android-test compose-config homelab-config up down logs migrate clean
+.PHONY: setup doctor ci test api-test integration security android-build android-test android-lint compose-config homelab-config up down logs migrate clean
 
 setup:
 	@test -f .env || cp .env.example .env
@@ -15,7 +15,7 @@ doctor:
 	@test -x "$${JAVA_HOME:-}/bin/java" || test -x /opt/android-studio/jbr/bin/java || { echo 'Set JAVA_HOME to Android Studio bundled JBR or install JDK 17+'; exit 1; }
 	@test -d "$${ANDROID_HOME:-$${ANDROID_SDK_ROOT:-$$HOME/Android/Sdk}}" || { echo 'Set ANDROID_HOME to the Android SDK path'; exit 1; }
 
-ci: test integration security compose-config homelab-config android-build android-test
+ci: test integration security compose-config homelab-config android-build android-test android-lint
 
 test: api-test
 
@@ -39,8 +39,12 @@ android-build:
 android-test:
 	cd apps/android && ./gradlew --no-daemon :app:testDebugUnitTest
 
+android-lint:
+	cd apps/android && ./gradlew --no-daemon :app:lintDebug
+
 compose-config: setup
 	$(COMPOSE) config --quiet
+	MAP_DATA_DIR=/tmp/project-drive-map-data docker compose -f infra/compose.yaml -f infra/maps.compose.yaml --env-file .env config --quiet
 
 homelab-config:
 	kubectl kustomize deploy/homelab >/dev/null

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"projectdrive/services/api/internal/config"
 	"projectdrive/services/api/internal/httpapi"
+	"projectdrive/services/api/internal/navigation"
 )
 
 func main() {
@@ -33,10 +34,16 @@ func main() {
 	}
 	defer db.Close()
 
+	var engine navigation.Engine
+	if cfg.NavigationURL != "" {
+		engine = navigation.Valhalla{URL: cfg.NavigationURL}
+	}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       20 * time.Second,
+		WriteTimeout:      30 * time.Second,
 	}
 
 	serveErr := make(chan error, 1)

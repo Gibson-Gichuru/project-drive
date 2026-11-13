@@ -14,3 +14,11 @@ local.properties
 /services/api/bin/
 /services/api/coverage.out
 *.log
+
+# Regional data and physical-device captures stay outside source control.
+/map-data/
+*.osm.pbf
+*.mbtiles
+*.pmtiles
+/artifacts/device-tests/
+__pycache__/

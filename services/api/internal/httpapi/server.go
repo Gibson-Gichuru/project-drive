@@ -14,7 +14,7 @@ type Pinger interface {
 	Ping(context.Context) error
 }
 
-func NewHandler(db Pinger, logger *slog.Logger) http.Handler {
+func NewHandler(db Pinger, logger *slog.Logger, options ...NavigationOptions) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -28,6 +28,9 @@ func NewHandler(db Pinger, logger *slog.Logger) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
+	if len(options) > 0 {
+		registerNavigation(mux, options[0])
+	}
 	return requestID(logging(logger, mux))
 }
 
@@ -55,8 +58,13 @@ type requestIDKey struct{}
 func logging(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
+		path := r.URL.Path
 		next.ServeHTTP(w, r)
 		id, _ := r.Context().Value(requestIDKey{}).(string)
-		logger.Info("http request", "method", r.Method, "path", r.URL.Path, "request_id", id, "duration_ms", time.Since(started).Milliseconds())
+		// Tile identifiers reveal the map viewport; log only the endpoint family.
+		if len(path) >= 6 && path[:6] == "/maps/" {
+			path = "/maps/{asset}"
+		}
+		logger.Info("http request", "method", r.Method, "path", path, "request_id", id, "duration_ms", time.Since(started).Milliseconds())
 	})
 }

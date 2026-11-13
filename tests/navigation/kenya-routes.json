@@ -1,0 +1,7 @@
+[
+  {"name":"Nairobi CBD to Langata Road","origin":{"latitude":-1.2864,"longitude":36.8200},"destination":{"latitude":-1.3152,"longitude":36.8148}},
+  {"name":"Nairobi to Ngong","origin":{"latitude":-1.2864,"longitude":36.8200},"destination":{"latitude":-1.3615,"longitude":36.6567}},
+  {"name":"Nakuru to Njoro","origin":{"latitude":-0.2833,"longitude":36.0667},"destination":{"latitude":-0.3319,"longitude":35.9442}},
+  {"name":"Mombasa to Nyali","origin":{"latitude":-4.0618,"longitude":39.6637},"destination":{"latitude":-4.0268,"longitude":39.6981}},
+  {"name":"Nyeri to Othaya","origin":{"latitude":-0.4201,"longitude":36.9476},"destination":{"latitude":-0.5467,"longitude":36.9441}}
+]

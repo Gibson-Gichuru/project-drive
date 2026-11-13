@@ -32,7 +32,7 @@ Future work remains outside these phases until separately prioritized: OBD-II, i
 
 ### Current status — 2026-11-13
 
-**M0 — Repository and environment: complete.** The local `make ci` gate passes; GitHub Actions passed on `eade557`; the image publication and homelab deployment workflow passed on `493d2e9`; Flux reports its Kustomization ready; the API and PostGIS each have one ready replica; migration `0001_initial` is applied; and both health endpoints have been checked from the workstation. See [the M0 milestone report](milestones/M0.md) for commit references and the remaining boundary of this result. M1 is next and is not started.
+**M0 — Repository and environment: complete.** The local `make ci` gate passes; GitHub Actions passed on `eade557`; the image publication and homelab deployment workflow passed on `493d2e9`; Flux reports its Kustomization ready; the API and PostGIS each have one ready replica; migration `0001_initial` is applied; and both health endpoints have been checked from the workstation. See [the M0 milestone report](milestones/M0.md) for commit references and the remaining boundary of this result. **M1 is in progress:** the Kenya map/routing stack and Android preview/playback are implemented and undergoing device/homelab verification. Its real-world route-following and coverage gate is still open; see [M1 status](milestones/M1.md).
 
 Complete these in order. Each milestone produces a runnable increment and a short status report covering changed files, verification, blockers, and the next step.
 
@@ -70,4 +70,4 @@ Complete these in order. Each milestone produces a runnable increment and a shor
 
 ## Working cadence
 
-Proceed with M1 next. At each milestone review, compare evidence with its gate, record changed scope and decisions, and either close it or list the concrete blocker. Do not begin later milestones until the current gate passes. Revisit phase scope after M6 field results, and re-estimate work before making delivery-date commitments.
+Complete the remaining M1 gate next. At each milestone review, compare evidence with its gate, record changed scope and decisions, and either close it or list the concrete blocker. Do not begin later milestones until the current gate passes. Revisit phase scope after M6 field results, and re-estimate work before making delivery-date commitments.

@@ -1,0 +1,50 @@
+# Operator-owned: data survives Flux releases and pruning. Never commit map archives.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: project-drive-map-data
+  namespace: homelab-apps
+  labels:
+    app.kubernetes.io/part-of: project-drive
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: project-drive-map-import
+  namespace: homelab-apps
+  labels:
+    app.kubernetes.io/part-of: project-drive
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: lab-02
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: import
+      image: alpine:3.22
+      command: ["sh", "-ec", "sleep 3600"]
+      resources:
+        requests: {cpu: 10m, memory: 16Mi}
+        limits: {cpu: 250m, memory: 128Mi}
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: {drop: [ALL]}
+      volumeMounts:
+        - {name: data, mountPath: /data}
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: project-drive-map-data

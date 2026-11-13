@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.1.0
-  description: Phase 0 API contract. Authentication and trip endpoints arrive in M2.
+  version: 0.2.0
+  description: Phase 0 private developer API. M1 navigation is enabled only with a self-hosted regional stack. Authentication and trip endpoints arrive in M2.
 servers:
   - url: http://localhost:8080
 paths:
@@ -34,6 +34,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotReady'
+  /v1/navigation/route:
+    post:
+      operationId: navigationRoute
+      summary: Calculate a driving route in the self-hosted regional graph
+      description: Private M1 spike only; origin/destination are processed without persistence or request-body logging. Maximum request body is 4096 bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [origin, destination]
+              properties:
+                origin: {$ref: '#/components/schemas/Coordinate'}
+                destination: {$ref: '#/components/schemas/Coordinate'}
+      responses:
+        '200':
+          description: Route geometry and instructions, with distances in meters and times in seconds
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NavigationRoute'}
+        '400': {description: Invalid, missing, unknown or oversized request fields}
+        '422': {description: No drivable route in the regional graph}
+        '503': {description: Navigation is not configured or upstream service is unavailable}
+  /maps/tiles/{z}/{x}/{y}:
+    get:
+      operationId: vectorTile
+      summary: Regional OpenMapTiles vector tile
+      parameters:
+        - {in: path, name: z, required: true, schema: {type: integer, minimum: 0, maximum: 14}}
+        - {in: path, name: x, required: true, schema: {type: integer, minimum: 0}}
+        - {in: path, name: y, required: true, schema: {type: integer, minimum: 0}}
+      responses:
+        '200': {description: Vector tile with source attribution requirements}
+        '204': {description: Empty tile}
+        '400': {description: Tile coordinate is outside the zoom grid}
+        '404': {description: No tile or map stack is not configured}
+        '503': {description: Tile service is unavailable}
 components:
   schemas:
     Health:
@@ -51,3 +90,32 @@ components:
       required: [status]
       properties:
         status: { const: not_ready }
+    Coordinate:
+      type: object
+      additionalProperties: false
+      required: [latitude, longitude]
+      properties:
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
+    NavigationRoute:
+      type: object
+      required: [geometry, distance_m, duration_s, maneuvers]
+      properties:
+        geometry:
+          type: array
+          minItems: 2
+          items: {$ref: '#/components/schemas/Coordinate'}
+        distance_m: {type: number, minimum: 0}
+        duration_s: {type: number, minimum: 0}
+        maneuvers:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [instruction, start_index, end_index, distance_m, duration_s]
+            properties:
+              instruction: {type: string}
+              start_index: {type: integer, minimum: 0}
+              end_index: {type: integer, minimum: 0}
+              distance_m: {type: number, minimum: 0}
+              duration_s: {type: number, minimum: 0}
