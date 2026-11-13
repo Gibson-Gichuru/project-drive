@@ -9,16 +9,16 @@ import android.os.Looper
 import android.os.SystemClock
 import org.projectdrive.app.core.navigation.Coordinate
 
-data class LocationFix(val coordinate: Coordinate, val accuracyMeters: Float, val elapsedRealtimeMillis: Long)
-
 class AndroidLocationSource(context: Context, private val onFix: (LocationFix) -> Unit, private val onUnavailable: () -> Unit) {
     private val manager = context.getSystemService(LocationManager::class.java)
     private val listener = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-            if (!location.hasAccuracy() || location.accuracy < 0 || !location.accuracy.isFinite()) return
+            if (!location.hasAccuracy() || !location.accuracy.isFinite() || location.accuracy < 0) return
             val recorded = location.elapsedRealtimeNanos / 1_000_000
             if (SystemClock.elapsedRealtime() - recorded !in 0..15_000) return
-            onFix(LocationFix(Coordinate(location.latitude, location.longitude), location.accuracy, recorded))
+            // Framework locations normally validate coordinates; reject malformed provider data safely.
+            val coordinate = runCatching { Coordinate(location.latitude, location.longitude) }.getOrNull() ?: return
+            onFix(LocationFix(coordinate, location.accuracy, recorded))
         }
         override fun onProviderDisabled(provider: String) { onUnavailable() }
         override fun onProviderEnabled(provider: String) {}

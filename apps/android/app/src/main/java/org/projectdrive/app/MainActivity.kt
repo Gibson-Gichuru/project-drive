@@ -3,6 +3,7 @@ package org.projectdrive.app
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,6 +37,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 val state by model.state.collectAsState()
+                DisposableEffect(state.guiding, state.playback) {
+                    val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                    if (state.guiding || state.playback) window.addFlags(flag) else window.clearFlags(flag)
+                    onDispose { window.clearFlags(flag) }
+                }
                 var showLocationDisclosure by remember { mutableStateOf(false) }
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {

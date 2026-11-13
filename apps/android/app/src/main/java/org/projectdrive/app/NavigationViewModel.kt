@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.projectdrive.app.core.location.LocationFix
+import org.projectdrive.app.core.location.preferredFix
 import org.projectdrive.app.core.navigation.*
 
 data class NavigationState(
@@ -38,7 +39,7 @@ class NavigationViewModel : ViewModel() {
                 delay(1_000)
                 val current = mutable.value
                 val fix = current.fix
-                if (current.gpsWanted && fix != null && SystemClock.elapsedRealtime() - fix.elapsedRealtimeMillis > 15_000) {
+                if (current.gpsWanted && fix != null && !fix.isFresh(SystemClock.elapsedRealtime())) {
                     mutable.update { it.copy(fix = null, locationStatus = "Location stale · waiting for a fresh fix", progress = if (it.playback) it.progress else null) }
                 }
             }
@@ -87,23 +88,25 @@ class NavigationViewModel : ViewModel() {
         mutable.update { it.copy(gpsWanted = false, guiding = false, fix = null, progress = null, locationStatus = "Location unavailable · map preview still available") }
     }
     fun locationUnavailable() {
-        mutable.update { it.copy(locationStatus = "Location unavailable · check device location settings", progress = if (it.playback) it.progress else null) }
+        mutable.update { it.copy(fix = null, locationStatus = "Location unavailable · check device location settings", progress = if (it.playback) it.progress else null) }
     }
     fun onLocation(fix: LocationFix) {
         if (!mutable.value.gpsWanted) return
-        if (useNextFixAsOrigin && fix.accuracyMeters <= 50) {
+        val selected = preferredFix(mutable.value.fix, fix, SystemClock.elapsedRealtime()) ?: return
+        if (selected !== fix) return
+        if (useNextFixAsOrigin && fix.canGuide(SystemClock.elapsedRealtime())) {
             clearRoute(); useNextFixAsOrigin = false
             mutable.update { it.copy(originText = "${fix.coordinate.latitude}, ${fix.coordinate.longitude}") }
         }
         mutable.update { current -> current.copy(
             fix = fix,
-            locationStatus = "Location accuracy ±${fix.accuracyMeters.toInt()} m" + if (fix.accuracyMeters > 50) " · too approximate for guidance" else "",
-            progress = if (current.guiding && fix.accuracyMeters <= 50) current.route?.let { progressOnRoute(it, fix.coordinate) } else if (current.playback) current.progress else null,
+            locationStatus = fix.accuracyStatus(),
+            progress = if (current.guiding && fix.canGuide(SystemClock.elapsedRealtime())) current.route?.let { progressOnRoute(it, fix.coordinate) } else if (current.playback) current.progress else null,
         ) }
     }
     fun startGuidance() {
         val current = mutable.value; val fix = current.fix
-        if (current.route == null || fix == null || fix.accuracyMeters > 50 || SystemClock.elapsedRealtime() - fix.elapsedRealtimeMillis > 15_000) {
+        if (current.route == null || fix == null || !fix.canGuide(SystemClock.elapsedRealtime())) {
             mutable.update { it.copy(error = "Use your location and wait for a recent, accurate fix before starting guidance.") }; return
         }
         stopGuidance()
