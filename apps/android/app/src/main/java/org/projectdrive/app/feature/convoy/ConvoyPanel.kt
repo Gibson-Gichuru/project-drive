@@ -22,7 +22,7 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
     Text(state.message, style = MaterialTheme.typography.bodyMedium)
     if (state.pendingStop && !state.sharing) Text("Server cleanup pending · local publishing is off", color = MaterialTheme.colorScheme.error)
     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (BuildConfig.DEBUG && !state.sharing) OutlinedButton(onClick = importSession, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Import local test session") }
+    if (BuildConfig.DEBUG && BuildConfig.LOCAL_TEST_AUTH && !state.sharing) OutlinedButton(onClick = importSession, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Import local test session") }
     if (!state.signedIn) {
         Text("Convoys need an authenticated session. Phase 0 uses an isolated local test server; production sign-in is a later milestone.")
         return

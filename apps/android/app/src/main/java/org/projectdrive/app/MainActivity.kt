@@ -25,6 +25,8 @@ import org.projectdrive.app.map.MapLibreRenderer
 @dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private lateinit var model: NavigationViewModel
+    private lateinit var telemetry: org.projectdrive.app.feature.telemetry.TelemetryViewModel
+    private var telemetryPermission=false
     private lateinit var convoy: org.projectdrive.app.feature.convoy.ConvoyViewModel
     private var sessionImport = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
@@ -50,27 +52,37 @@ class MainActivity : ComponentActivity() {
     private lateinit var renderer: MapLibreRenderer
     private lateinit var location: AndroidLocationSource
     private val permission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-        if (grants.values.any { it }) { model.requestLocation(); location.start() }
+        if (telemetryPermission) {
+            telemetryPermission=false
+            if(grants.values.any { it }) telemetry.start() else telemetry.permissionDenied()
+        } else if (grants.values.any { it }) { model.requestLocation(); location.start() }
         else model.locationDenied()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         model = ViewModelProvider(this)[NavigationViewModel::class.java]
+        telemetry = ViewModelProvider(this)[org.projectdrive.app.feature.telemetry.TelemetryViewModel::class.java]
         convoy = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.ConvoyViewModel::class.java]
         renderer = MapLibreRenderer(this, savedInstanceState, BuildConfig.MAP_SERVER_URL, model::selectPin)
         location = AndroidLocationSource(this, { fix ->
             model.onLocation(fix)
+            if(!model.state.value.playback)telemetry.onFix(fix)
             if (model.state.value.gpsWanted && model.state.value.fix === fix) convoy.onFix(fix, hasLocationPermission(), model.state.value.playback)
-        }, { model.locationUnavailable(); convoy.stopSharing("Sharing off · location unavailable") })
+        }, { model.locationUnavailable(); telemetry.locationUnavailable(); convoy.stopSharing("Sharing off · location unavailable") })
         setContent {
             MaterialTheme {
                 val state by model.state.collectAsState()
                 val group by convoy.state.collectAsState()
-                var convoyTab by remember { mutableStateOf(false) }
-                DisposableEffect(state.guiding, state.playback) {
+                val recording by telemetry.state.collectAsState()
+                var tab by remember { mutableStateOf("Navigation") }
+                LaunchedEffect(recording.recording) {
+                    if(recording.recording && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && hasLocationPermission()) location.start()
+                    else if(!state.gpsWanted) location.stop()
+                }
+                DisposableEffect(state.guiding, state.playback, recording.recording) {
                     val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-                    if (state.guiding || state.playback) window.addFlags(flag) else window.clearFlags(flag)
+                    if (state.guiding || state.playback || recording.recording) window.addFlags(flag) else window.clearFlags(flag)
                     onDispose { window.clearFlags(flag) }
                 }
                 var showLocationDisclosure by remember { mutableStateOf(false) }
@@ -79,18 +91,24 @@ class MainActivity : ComponentActivity() {
                         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                             Text("Project Drive", style = MaterialTheme.typography.titleLarge)
                             Text(if (state.playback) "PREVIEW PLAYBACK · simulated position" else "Explore Kenya", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                            Text(state.locationStatus, style = MaterialTheme.typography.bodySmall)
+                            Text(if(recording.recording && !state.gpsWanted) "Local telemetry recording · location in use" else state.locationStatus, style = MaterialTheme.typography.bodySmall)
+                            if(recording.recording) Button(onClick={telemetry.finish();if(!state.gpsWanted)location.stop()},modifier=Modifier.fillMaxWidth()){Text("Finish recording")}
                             if (group.sharing) Button(onClick = { convoy.stopSharing() }, modifier = Modifier.fillMaxWidth()) { Text("Stop sharing now") }
                             Row {
-                                TextButton(onClick = { convoyTab = false }) { Text("Navigation") }
-                                TextButton(onClick = { convoyTab = true }) { Text("Convoy") }
+                                TextButton(onClick = { tab = "Navigation" }) { Text("Navigation") }
+                                TextButton(onClick = { tab = "Convoy" }) { Text("Convoy") }
+                                TextButton(onClick={tab="Telemetry"}){Text("Telemetry")}
                             }
                         }
                         AndroidView(factory = { renderer.view }, modifier = Modifier.fillMaxWidth().weight(1f), update = {
                             renderer.render(state.route, state.destination, state.simulatedPosition ?: state.fix?.coordinate, state.playback, state.playback || (state.guiding && state.progress != null), group.participants.filter { it.id != group.userId }, group.now)
                         })
                         Column(Modifier.fillMaxWidth().heightIn(max = 330.dp).verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            if (convoyTab) {
+                            if(tab=="Telemetry") {
+                                org.projectdrive.app.feature.telemetry.TelemetryPanel(recording,telemetry,group.trip,state.playback,{
+                                    if(hasLocationPermission())telemetry.start() else {telemetryPermission=true;permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))}
+                                },{telemetry.finish();if(!state.gpsWanted)location.stop()})
+                            } else if (tab=="Convoy") {
                                 org.projectdrive.app.feature.convoy.ConvoyPanel(group, convoy, NavigationViewModel.parseCoordinate(state.originText), NavigationViewModel.parseCoordinate(state.destinationText), state.gpsWanted && hasLocationPermission(), state.playback) { sessionImport.launch("application/json") }
                             } else {
                                 if (state.route == null && !state.guiding && !state.playback) {
@@ -123,10 +141,10 @@ class MainActivity : ComponentActivity() {
                                     if (state.route != null) TextButton(onClick = model::editRoute) { Text("Change route") }
                                     if (state.route != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Button(onClick = model::startGuidance, modifier = Modifier.weight(1f)) { Text("Start guidance") }
-                                        OutlinedButton(onClick = model::playRoute, modifier = Modifier.weight(1f)) { Text("Play preview") }
+                                        OutlinedButton(onClick = model::playRoute, enabled = !recording.recording, modifier = Modifier.weight(1f)) { Text("Play preview") }
                                     }
                                 }
-                                if (state.gpsWanted) TextButton(onClick = { convoy.stopSharing("Sharing off · location turned off"); location.stop(); model.stopLocation() }) { Text("Turn location off") }
+                                if (state.gpsWanted) TextButton(onClick = { convoy.stopSharing("Sharing off · location turned off"); telemetry.finish("Recording stopped when location was turned off",true); location.stop(); model.stopLocation() }) { Text("Turn location off") }
                             }
                             Text("© OpenStreetMap contributors · © OpenMapTiles", style = MaterialTheme.typography.labelSmall)
                         }
@@ -149,8 +167,8 @@ class MainActivity : ComponentActivity() {
 
     private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     override fun onStart() { super.onStart(); renderer.onStart() }
-    override fun onResume() { super.onResume(); convoy.resume(); renderer.onResume(); if (model.state.value.gpsWanted && hasLocationPermission()) { model.resumeForeground(); location.start() } }
-    override fun onPause() { convoy.pause(); location.stop(); renderer.onPause(); super.onPause() }
+    override fun onResume() { super.onResume(); telemetry.resume(); convoy.resume(); renderer.onResume(); if (model.state.value.gpsWanted && hasLocationPermission()) { model.resumeForeground(); location.start() } }
+    override fun onPause() { telemetry.pause(); convoy.pause(); location.stop(); renderer.onPause(); super.onPause() }
     override fun onStop() { location.stop(); if (!isChangingConfigurations) model.pauseForeground(); renderer.onStop(); super.onStop() }
     override fun onDestroy() { location.stop(); renderer.onDestroy(); super.onDestroy() }
     override fun onLowMemory() { super.onLowMemory(); renderer.onLowMemory() }

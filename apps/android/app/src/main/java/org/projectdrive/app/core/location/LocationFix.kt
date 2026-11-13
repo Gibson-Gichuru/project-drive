@@ -7,7 +7,7 @@ const val FRESH_FIX_MILLIS = 15_000L
 private const val PRECISE_FIX_PREFERENCE_MILLIS = 3_000L
 const val GUIDANCE_ACCURACY_METERS = 50f
 
-data class LocationFix(val coordinate: Coordinate, val accuracyMeters: Float, val elapsedRealtimeMillis: Long) {
+data class LocationFix(val coordinate: Coordinate, val accuracyMeters: Float, val elapsedRealtimeMillis: Long, val speedMps: Float? = null, val speedAccuracyMps: Float? = null, val bearingDegrees: Float? = null, val bearingAccuracyDegrees: Float? = null) {
     fun isFresh(nowMillis: Long) = nowMillis - elapsedRealtimeMillis in 0..FRESH_FIX_MILLIS
     // Android permits zero accuracy. For this trial it is insufficient evidence for guidance;
     // it must never be presented as a guarantee of a perfect fix.

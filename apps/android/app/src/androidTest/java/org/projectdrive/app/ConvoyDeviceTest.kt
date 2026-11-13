@@ -70,7 +70,7 @@ class ConvoyDeviceTest {
             }
             report("unauthorized-denied"); return
         }
-        val db = Room.databaseBuilder(context, ConvoyDatabase::class.java, "convoy.db").build()
+        val db = Room.databaseBuilder(context, ConvoyDatabase::class.java, "convoy.db").addMigrations(TELEMETRY_MIGRATION).build()
         runBlocking { db.convoy().select(SelectedTrip(userId = session.userId, tripId = tripId)) }
         db.close()
         var model: ConvoyViewModel? = null
@@ -112,7 +112,7 @@ class ConvoyDeviceTest {
                             main { stopping = vm.stopSharing() }; runBlocking { stopping?.join() }
                             assertFalse(vm.state.value.pendingStop)
                             runBlocking {
-                                val journal = Room.databaseBuilder(context, ConvoyDatabase::class.java, "convoy.db").build()
+                                val journal = Room.databaseBuilder(context, ConvoyDatabase::class.java, "convoy.db").addMigrations(TELEMETRY_MIGRATION).build()
                                 journal.convoy().remember(PendingStop(session.userId, tripId)); journal.close()
                                 api.request(session, "PUT", "/v1/trips/$tripId/sharing", JSONObject().put("enabled", true))
                             }

@@ -18,7 +18,7 @@ class AndroidLocationSource(context: Context, private val onFix: (LocationFix) -
             if (SystemClock.elapsedRealtime() - recorded !in 0..15_000) return
             // Framework locations normally validate coordinates; reject malformed provider data safely.
             val coordinate = runCatching { Coordinate(location.latitude, location.longitude) }.getOrNull() ?: return
-            onFix(LocationFix(coordinate, location.accuracy, recorded))
+            onFix(LocationFix(coordinate, location.accuracy, recorded, location.speed.takeIf { location.hasSpeed() }, location.speedAccuracyMetersPerSecond.takeIf { location.hasSpeedAccuracy() }, location.bearing.takeIf { location.hasBearing() }, location.bearingAccuracyDegrees.takeIf { location.hasBearingAccuracy() }))
         }
         override fun onProviderDisabled(provider: String) { onUnavailable() }
         override fun onProviderEnabled(provider: String) {}

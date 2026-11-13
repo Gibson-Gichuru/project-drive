@@ -11,3 +11,5 @@ This follows the specification's first routing candidate. OSRM and GraphHopper r
 The trial adds an offline data-build step, a separate persistent dataset, attribution obligations and two small serving processes. It does not deliver traffic-aware ETA, automatic rerouting, offline map packs or cross-border coverage. A phone route preview and simulated playback are distinct from actual GPS route following. The current component selection may change after Kenyan road observations and device/server measurements.
 
 See [evaluation and measured build results](../navigation-evaluation.md), [data/dependency notices](../map-data-licenses.md), and the [M1 status](../milestones/M1.md). Accept this ADR finally only when the roadmap's M1 physical route gate and real-world road checks pass.
+
+2026-11-13 access update: the owner authorized public HTTPS map/API reachability through the existing tunnel. Internal services and adapters remain unchanged; [the access runbook](../homelab-access.md) records path restrictions, private-auth boundaries and Android endpoint configuration.

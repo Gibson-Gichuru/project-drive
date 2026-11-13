@@ -1,9 +1,27 @@
+import java.net.URI
+
 plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val homelabOrigin = "https://drive-api.ripples.boo"
+fun serverOrigin(property: String): String {
+    val value = providers.gradleProperty(property).getOrElse(homelabOrigin).trimEnd('/')
+    val uri = URI(value)
+    require(uri.host != null && uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null && uri.rawPath.isNullOrEmpty()) {
+        "$property must be an HTTP(S) origin without credentials, path, query or fragment"
+    }
+    require(uri.scheme == "https" || uri.scheme == "http" && uri.host in setOf("127.0.0.1", "localhost")) {
+        "$property requires HTTPS, except for loopback development"
+    }
+    return value
+}
+val mapOrigin = serverOrigin("mapServerUrl")
+val apiOrigin = serverOrigin("apiServerUrl")
+val localTestAuth = URI(apiOrigin).host in setOf("127.0.0.1", "localhost")
 
 android {
     namespace = "org.projectdrive.app"
@@ -16,18 +34,21 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "MAP_SERVER_URL", "\"${providers.gradleProperty("mapServerUrl").getOrElse("http://127.0.0.1:18081")}\"")
+        buildConfigField("String", "MAP_SERVER_URL", "\"$mapOrigin\"")
+        buildConfigField("String", "API_SERVER_URL", "\"$apiOrigin\"")
     }
 
     buildTypes {
-        debug { buildConfigField("String", "API_SERVER_URL", "\"http://127.0.0.1:18082\"") }
-        release { buildConfigField("String", "API_SERVER_URL", "\"https://localhost\"") }
+        debug { buildConfigField("boolean", "LOCAL_TEST_AUTH", localTestAuth.toString()) }
+        release { buildConfigField("boolean", "LOCAL_TEST_AUTH", "false") }
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
 
     testOptions { unitTests.isReturnDefaultValues = true }
 }

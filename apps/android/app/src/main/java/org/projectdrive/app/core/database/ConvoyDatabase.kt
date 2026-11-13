@@ -1,6 +1,10 @@
 package org.projectdrive.app.core.database
 
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import org.projectdrive.app.core.telemetry.LocalRecording
+import org.projectdrive.app.core.telemetry.TelemetryDao
 
 // No credentials, invitations, coordinates or raw tracks belong in this database.
 @Entity(tableName = "pending_stops", primaryKeys = ["userId", "tripId"])
@@ -21,5 +25,11 @@ interface ConvoyDao {
     @Query("DELETE FROM saved_invites WHERE userId=:user AND tripId=:trip") suspend fun clearInvite(user: String, trip: String)
     @Query("DELETE FROM selected_trip") suspend fun clearSelection()
 }
-@Database(entities = [PendingStop::class, SelectedTrip::class, SavedInvite::class], version = 1, exportSchema = true)
-abstract class ConvoyDatabase : RoomDatabase() { abstract fun convoy(): ConvoyDao }
+@Database(entities = [PendingStop::class, SelectedTrip::class, SavedInvite::class, LocalRecording::class], version = 2, exportSchema = true)
+abstract class ConvoyDatabase : RoomDatabase() { abstract fun convoy(): ConvoyDao; abstract fun telemetry(): TelemetryDao }
+
+val TELEMETRY_MIGRATION = object : Migration(1,2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS telemetry_recordings (id TEXT NOT NULL PRIMARY KEY, summaryJSON TEXT NOT NULL, eventsJSON TEXT NOT NULL, active INTEGER NOT NULL, expiresAtMillis INTEGER NOT NULL, uploadDeadlineMillis INTEGER NOT NULL, uploadTripId TEXT, uploadUserId TEXT, uploaded INTEGER NOT NULL)")
+    }
+}

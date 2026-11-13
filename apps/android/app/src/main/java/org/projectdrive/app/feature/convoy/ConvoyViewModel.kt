@@ -22,7 +22,7 @@ data class ConvoyState(
     val signedIn: Boolean = false, val userId: String = "", val trip: Trip? = null,
     val members: List<Member> = emptyList(), val participants: List<Participant> = emptyList(),
     val sharing: Boolean = false, val connected: Boolean = false, val busy: Boolean = false,
-    val pendingStop: Boolean = false, val message: String = "Import a local test session to use convoys",
+    val pendingStop: Boolean = false, val message: String = if (org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to use convoys" else "Convoy sign-in is not yet available",
     val invitation: Invitation? = null, val now: Long = 0, val snapshotGeneration: Long = 0,
 )
 

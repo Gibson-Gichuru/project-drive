@@ -55,11 +55,11 @@ The homelab deployment uses the existing K3s/Flux setup, with an isolated Flux s
 
 Homelab deployment status and access:
 
-The deployment uses the repository-linked public GHCR image `ghcr.io/gibson-gichuru/project-drive`; no registry credentials or public ingress are required. Flux reads the `homelab-deploy` branch and applies the release into `homelab-apps`. The PostGIS database Secret is provisioned on the cluster, outside Git. GitHub Actions builds an immutable image, publishes it to GHCR, and updates the GitOps branch after successful CI on `main`, including map-manifest updates. Manual dispatch can also promote a trusted `main` source. The workflow serializes releases and prevents an older tested source from replacing a newer release. No cluster credentials are stored in GitHub Actions.
+The deployment uses the repository-linked public GHCR image `ghcr.io/gibson-gichuru/project-drive`; no registry credentials are required. Flux reads the `homelab-deploy` branch and applies the release into `homelab-apps`. The PostGIS database Secret is provisioned on the cluster, outside Git. GitHub Actions builds an immutable image, publishes it to GHCR, and updates the GitOps branch after successful CI on `main`, including map-manifest updates. Manual dispatch can also promote a trusted `main` source. The workflow serializes releases and prevents an older tested source from replacing a newer release. No cluster credentials are stored in GitHub Actions.
 
-To reach the API temporarily from an authorized workstation, run `kubectl -n homelab-apps port-forward service/project-drive-api 8080:8080`, then request `http://127.0.0.1:8080/healthz` or `/readyz`. The Service remains ClusterIP-only. Do not expose it publicly until authentication and privacy controls have been implemented and reviewed.
+To reach the API temporarily from an authorized workstation, run `kubectl -n homelab-apps port-forward service/project-drive-api 8080:8080`, then request `http://127.0.0.1:8080/healthz` or `/readyz`. The Service remains ClusterIP-only. The owner-authorized HTTPS tunnel exposes app paths separately; see [homelab access](docs/homelab-access.md).
 
-Use the repo's GitHub branch protection for `main`; do not execute untrusted pull-request code on a homelab runner. The deployment job uses GitHub-hosted runners only for image publishing, and Flux pulls the release from GitHub. No cluster credentials are stored in GitHub Actions. Do not expose the API publicly until authentication and privacy controls have been implemented and reviewed.
+Use the repo's GitHub branch protection for `main`; do not execute untrusted pull-request code on a homelab runner. The deployment job uses GitHub-hosted runners only for image publishing, and Flux pulls the release from GitHub. No cluster credentials are stored in GitHub Actions. Development identities remain disabled on the homelab, including through its public HTTPS hostname.
 
 For the map spike, `deploy/homelab/maps.yaml` adds private Martin and Valhalla Services using a separate 10 GiB data PVC. The data import and immutable promotion procedure is in [the navigation runbook](docs/navigation-evaluation.md); archives and source extracts stay outside Git. The trial's gateway is disabled when `APP_ENV=production`.
 
@@ -70,7 +70,7 @@ MAP_DATA_DIR=/absolute/path/to/map-data docker compose -f infra/compose.yaml -f 
 scripts/navigation-smoke.py http://127.0.0.1:8080
 ```
 
-For a paired phone, select its current Wi-Fi ADB serial and run `adb -s SERIAL reverse tcp:18081 tcp:8080` for the local stack. For homelab testing, first port-forward the API to workstation port 18081, then use `adb -s SERIAL reverse tcp:18081 tcp:18081`. The default debug app uses `http://127.0.0.1:18081`; the HTTP exception exists only for loopback in the debug variant. An alternate self-hosted HTTPS endpoint can be supplied using `-PmapServerUrl=https://YOUR_HOST` at Android build time.
+The default Android build uses `https://drive-api.ripples.boo` for maps and API traffic through the existing homelab tunnel. No workstation forwarding is needed. Private trip/telemetry operations remain unavailable there until production sign-in is implemented. For isolated local testing, explicitly build with `-PmapServerUrl=http://127.0.0.1:18081 -PapiServerUrl=http://127.0.0.1:18082` and configure device forwards. See [HTTPS setup, checks and recovery](docs/homelab-access.md).
 
 Use “Preview route” for fixed coordinates or a long-pressed map destination; “Play preview” is explicitly simulated. Use “Use my location” and then “Start guidance” for a fresh foreground fix. No account is required for the developer spike. This is not a production navigation release.
 
@@ -98,3 +98,7 @@ Trip lifecycle, private membership, hashed invitations and offline local/test id
 ## M3 realtime developer API
 
 The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is implemented in [M4](docs/milestones/M4.md), and M1’s actual journey remains a separately deferred field test.
+
+## M5 local telemetry
+
+Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and the remaining physical journey gate. The owner scheduled physical testing for 14 November 2026; see [the field checklist](docs/device-tests/2026-11-14-field.md).

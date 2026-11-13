@@ -40,7 +40,7 @@ class SessionVault @Inject constructor(@ApplicationContext context: Context) {
         return Session(token, id, expiry)
     }
     fun save(bytes: ByteArray): Session {
-        check(BuildConfig.DEBUG) { "Development session import is disabled" }
+        check(BuildConfig.DEBUG && BuildConfig.LOCAL_TEST_AUTH) { "Development session import is disabled" }
         val session = parse(bytes)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
         val encrypted = cipher.doFinal(bytes)
@@ -51,7 +51,7 @@ class SessionVault @Inject constructor(@ApplicationContext context: Context) {
         return session
     }
     fun load(): Session? = runCatching {
-        if (!BuildConfig.DEBUG || !file.exists()) return null
+        if (!BuildConfig.DEBUG || !BuildConfig.LOCAL_TEST_AUTH || !file.exists()) return null
         val bytes = android.util.AtomicFile(file).readFully(); require(bytes.size in 30..16384)
         val size = bytes[0].toInt(); require(size == 12)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes.copyOfRange(1, 1 + size))) }

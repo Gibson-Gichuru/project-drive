@@ -49,7 +49,7 @@ func Load() (Config, error) {
 	}
 	if cfg.TileURL != "" {
 		if cfg.Environment == "production" {
-			return Config{}, errors.New("M1 navigation spike is restricted to local, test, or private homelab environments")
+			return Config{}, errors.New("M1 navigation spike is restricted to local, test, or prototype homelab environments")
 		}
 		for _, address := range []string{cfg.TileURL, cfg.NavigationURL} {
 			u, err := url.Parse(address)

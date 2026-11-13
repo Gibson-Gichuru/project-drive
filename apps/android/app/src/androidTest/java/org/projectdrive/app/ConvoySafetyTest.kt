@@ -60,6 +60,13 @@ class ConvoySafetyTest {
             override fun getNoBackupFilesDir() = directory
         }
         val vault = SessionVault(isolated)
+        if (!BuildConfig.LOCAL_TEST_AUTH) {
+            try { vault.save("{\"token\":\"invalid\"}".toByteArray()); fail("public build accepted development import") }
+            catch (_: IllegalStateException) { }
+            assertNull(vault.load())
+            directory.deleteRecursively()
+            return
+        }
         val claims = JSONObject().put("sub", "00000000-0000-4000-8000-000000000099").put("exp", System.currentTimeMillis() / 1000 + 600)
         val encoded = android.util.Base64.encodeToString(claims.toString().toByteArray(), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
         // Local parsing is not authentication. This deliberately unsigned test token

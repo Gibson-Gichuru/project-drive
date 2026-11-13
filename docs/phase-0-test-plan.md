@@ -8,7 +8,7 @@ This is an acceptance record template, not a statement that tests have passed. M
 - Build the regional dataset as documented in `navigation-evaluation.md`, and run `scripts/navigation-smoke.py BASE_URL` against both local and homelab APIs.
 - Physical Android: install over the explicitly selected paired Wi-Fi ADB transport; check attribution, map roads/labels, map-pin and coordinate selection, preview fit, simulated playback, rotation, background/resume, server disconnection/recovery, location off/denied/approximate/stale behavior and process restart. Preserve the user's rotation setting and permission preferences. Do not commit device identifiers, private addresses, pairing codes, screenshots of personal positions or GPS traces.
 
-Run the stationary phone checker after installing a debug APK and configuring the loopback server forward:
+Run the stationary phone checker after explicitly building the loopback debug variant from [the access runbook](homelab-access.md), installing it, and configuring the loopback server forward:
 
 ```sh
 scripts/android-navigation-check.py --serial "$ANDROID_SERIAL"
@@ -43,3 +43,16 @@ M2 domain/API authorization and invite/state-transition tests have passed. M3 ac
 - [ ] Two real phones exchanging actual GPS on a field journey; user deferred this gate. Android approximate-permission field accuracy and real mobile connectivity still need observation. Emulated coordinates and a denied-permission callback are not physical GPS or complete OS permission-dialog field evidence.
 
 See [M4 report](milestones/M4.md) for commands, limits and release evidence. Do not start M5 automatically while field gates are open; record any owner-authorized deferral explicitly.
+
+## M5 and public HTTPS software acceptance
+
+- [x] Local estimator unit checks for quality, gaps/jitter, candidate events and bounds.
+- [x] Native Room migration/recovery/expiry/binding and sensor start/stop on phone/emulator.
+- [x] Emulator synthetic recording/upload, rotation interruption and real process kill recovery.
+- [x] Public TLS routing, map/font downloads and protected REST/WebSocket denial on physical phone and emulator with Project Drive reverses removed.
+- [ ] Real moving-phone M5 summary; see [14 November field checklist](device-tests/2026-11-14-field.md).
+
+Use `make ci`, the loopback-only `scripts/android-telemetry-check.py`, and the
+opt-in `PublicEndpointTest` described in [M5](milestones/M5.md). The public build
+cannot import local development credentials. A successful unauthenticated 401 is
+not an authenticated public convoy test. Local recording works without sign-in.
