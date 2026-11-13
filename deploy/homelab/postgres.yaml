@@ -6,7 +6,6 @@ metadata:
     app.kubernetes.io/name: project-drive-db
     app.kubernetes.io/part-of: project-drive
 spec:
-  clusterIP: None
   selector:
     app.kubernetes.io/name: project-drive-db
   ports:
