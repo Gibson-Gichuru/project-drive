@@ -8,7 +8,7 @@ This repository implements Phase 0 milestone **M0 — Repository and environment
 
 - Go 1.26.11 or newer (older Go installations automatically download the pinned toolchain)
 - Docker Engine with Compose v2
-- Android Studio's bundled JDK (JDK 17 or newer) and Android SDK platform 37
+- Android Studio's bundled JDK (JDK 17 or newer) and Android SDK platform 36
 - `make`, `kubectl` (only for validating the homelab manifests)
 
 No cloud credentials are needed to build or run locally. The first Android build downloads open-source dependencies from Maven repositories.
