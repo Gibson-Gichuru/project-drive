@@ -1,6 +1,6 @@
 # Phase 0 validation plan
 
-This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; its software gate is now active. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
+This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 is next. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
 
 ## Reproducible checks
 
@@ -32,4 +32,4 @@ Public ingress, production authentication, address search, automatic rerouting a
 
 ## Later gates
 
-M2 adds domain/API authorization and invite/state-transition tests. M3 adds concurrent WebSocket clients and revocation/reconnect/limits tests. M4 needs two physical phones and denied/approximate permissions, stale state, restart, disconnection and immediate share-off checks. M5 needs actual sensor/GPS trip summary and bounded-buffer/retention evidence. M6 needs reproducible field conditions, receipt-to-broadcast p95, battery measurements, privacy/security review and a demonstration script. These gates have not been executed by the M1 spike.
+M2 domain/API authorization and invite/state-transition tests have passed. M3 actual WebSocket/PostGIS clients and revocation/reconnect/limits/TTL/restart tests have passed; see the milestone report. M4 needs two physical phones and denied/approximate permissions, stale state, restart, disconnection and immediate share-off checks. M5 needs actual sensor/GPS trip summary and bounded-buffer/retention evidence. M6 needs reproducible field conditions, receipt-to-broadcast p95, battery measurements, privacy/security review and a demonstration script. These gates have not been executed by the M1 spike.
