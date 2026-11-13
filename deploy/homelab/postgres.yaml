@@ -83,14 +83,15 @@ spec:
               memory: 768Mi
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
             capabilities:
               drop: ["ALL"]
-              add: ["CHOWN", "SETGID", "SETUID"]
             seccompProfile:
-              type: RuntimeDefault
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
