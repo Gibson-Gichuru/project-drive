@@ -22,3 +22,5 @@ local.properties
 *.pmtiles
 /artifacts/device-tests/
 __pycache__/
+
+.kotlin/

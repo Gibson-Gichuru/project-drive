@@ -35,7 +35,8 @@ class AndroidLocationSource(context: Context, private val onFix: (LocationFix) -
             if (providers.isEmpty()) { onUnavailable(); return }
             providers.forEach { provider ->
                 manager.getLastKnownLocation(provider)?.let { listener.onLocationChanged(it) }
-                manager.requestLocationUpdates(provider, 1_000L, 2f, listener, Looper.getMainLooper())
+                // Keep fresh fixes at a standstill; a distance filter can suppress stationary updates.
+                manager.requestLocationUpdates(provider, 1_000L, 0f, listener, Looper.getMainLooper())
             }
         } catch (_: SecurityException) { onUnavailable() }
     }

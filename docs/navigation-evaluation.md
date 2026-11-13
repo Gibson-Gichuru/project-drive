@@ -37,7 +37,7 @@ These results prove the points connect in this graph. They do not prove the rout
 
 ## Reproduce and refresh
 
-Use a new data directory for each snapshot. The initial auxiliary input downloads are over 1 GiB in addition to the Kenya PBF; keep at least 10 GiB free for build inputs, temporary files and release copies. The workstation build limits are explicit; homelab runtime limits total 1.5 GiB for tiles/router. Measure real memory/CPU after rollout; these limits are budgets, not measured consumption.
+Use a new data directory for each snapshot. The initial auxiliary input downloads are over 1 GiB in addition to the Kenya PBF; keep at least 10 GiB free for build inputs, temporary files and release copies. The workstation build limits are explicit; homelab runtime limits total 1.5 GiB for tiles/router. An initial homelab idle snapshot during rollout reported API 2 MiB, Martin 9 MiB, and Valhalla 59 MiB with 1–2 millicores for the map/API processes. These are initial idle observations, not peak or field-load measurements; keep the stated limits as budgets.
 
 ```sh
 export MAP_DATA_DIR="$HOME/.cache/project-drive/maps/new-snapshot"
