@@ -56,11 +56,12 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 				}
 			}
 			var body struct {
-				Name           string `json:"name"`
-				Token          string `json:"token"`
-				ExpiresIn      int    `json:"expires_in_s"`
-				MaxUses        int    `json:"max_uses"`
-				SharingEnabled *bool  `json:"enabled"`
+				Name                string `json:"name"`
+				Origin, Destination *trips.Point
+				Token               string `json:"token"`
+				ExpiresIn           int    `json:"expires_in_s"`
+				MaxUses             int    `json:"max_uses"`
+				SharingEnabled      *bool  `json:"enabled"`
 			}
 			// Separate schemas reject known-but-irrelevant fields as well as unknown ones.
 			var target any
@@ -71,8 +72,10 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 				}{&body.SharingEnabled}
 			case "create":
 				target = &struct {
-					Name *string `json:"name"`
-				}{&body.Name}
+					Name        *string       `json:"name"`
+					Origin      **trips.Point `json:"origin"`
+					Destination **trips.Point `json:"destination"`
+				}{&body.Name, &body.Origin, &body.Destination}
 			case "join":
 				target = &struct {
 					Token *string `json:"token"`
@@ -107,6 +110,11 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 				writeAPIError(w, r, 400, "invalid_request", "invalid name, invite token, expiry or use limit")
 				return
 			}
+			if action == "create" && (body.Origin == nil) != (body.Destination == nil) {
+				writeAPIError(w, r, 400, "invalid_request", "both trip endpoints required")
+				return
+			}
+			c.Origin, c.Destination = body.Origin, body.Destination
 			if body.SharingEnabled != nil {
 				c.SharingEnabled = *body.SharingEnabled
 			}

@@ -8,7 +8,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
@@ -28,19 +30,53 @@ func (e Error) Error() string   { return e.Code }
 func problem(code string) error { return Error{Code: code} }
 
 type Store struct{ DB *pgxpool.Pool }
+
+// Point is a deliberately small API type; live positions never use durable trip endpoints.
+type Point struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+func (p Point) Valid() bool {
+	return !math.IsNaN(p.Latitude) && !math.IsNaN(p.Longitude) && !math.IsInf(p.Latitude, 0) && !math.IsInf(p.Longitude, 0) && p.Latitude >= -90 && p.Latitude <= 90 && p.Longitude >= -180 && p.Longitude <= 180
+}
+func (p *Point) UnmarshalJSON(data []byte) error {
+	var v struct {
+		Latitude  *float64 `json:"latitude"`
+		Longitude *float64 `json:"longitude"`
+	}
+	d := json.NewDecoder(strings.NewReader(string(data)))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&v); err != nil {
+		return err
+	}
+	if v.Latitude == nil || v.Longitude == nil {
+		return errors.New("coordinates required")
+	}
+	*p = Point{*v.Latitude, *v.Longitude}
+	if !p.Valid() {
+		return errors.New("invalid coordinate")
+	}
+	return nil
+}
+func samePoint(a, b *Point) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
+
 type Command struct {
+	Origin, Destination                                  *Point
 	Action, TripID, InviteID, Key, Name, Token, MemberID string
 	SharingEnabled                                       bool
 	ExpiresIn, MaxUses                                   int
 }
 type Trip struct {
-	ID        string     `json:"id"`
-	OwnerID   string     `json:"owner_id"`
-	Name      string     `json:"name"`
-	Status    string     `json:"status"`
-	CreatedAt time.Time  `json:"created_at"`
-	StartedAt *time.Time `json:"started_at"`
-	EndedAt   *time.Time `json:"ended_at"`
+	Origin      *Point     `json:"origin"`
+	Destination *Point     `json:"destination"`
+	ID          string     `json:"id"`
+	OwnerID     string     `json:"owner_id"`
+	Name        string     `json:"name"`
+	Status      string     `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	StartedAt   *time.Time `json:"started_at"`
+	EndedAt     *time.Time `json:"ended_at"`
 }
 type Member struct {
 	UserID         string    `json:"user_id"`
@@ -56,10 +92,12 @@ type Invite struct {
 	MaxUses   int       `json:"max_uses"`
 }
 
-const tripColumns = `id::text, owner_id::text, name, status, created_at, started_at, ended_at`
+const tripColumns = `id::text, owner_id::text, name, status, created_at, started_at, ended_at,
+ CASE WHEN origin IS NOT NULL THEN jsonb_build_object('latitude',ST_Y(origin::geometry),'longitude',ST_X(origin::geometry)) END,
+ CASE WHEN destination IS NOT NULL THEN jsonb_build_object('latitude',ST_Y(destination::geometry),'longitude',ST_X(destination::geometry)) END`
 
 func scanTrip(row pgx.Row) (t Trip, err error) {
-	err = row.Scan(&t.ID, &t.OwnerID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.EndedAt)
+	err = row.Scan(&t.ID, &t.OwnerID, &t.Name, &t.Status, &t.CreatedAt, &t.StartedAt, &t.EndedAt, &t.Origin, &t.Destination)
 	t.CreatedAt = t.CreatedAt.UTC()
 	if t.StartedAt != nil {
 		v := t.StartedAt.UTC()
@@ -99,8 +137,18 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 		return nil, problem("unauthorized")
 	}
 	if c.Action == "create" {
+		if (c.Origin == nil) != (c.Destination == nil) || c.Origin != nil && (!c.Origin.Valid() || !c.Destination.Valid()) {
+			return nil, problem("invalid_request")
+		}
 		// The unique index serializes retries even across separate API instances.
-		_, err := tx.Exec(ctx, `INSERT INTO trips(owner_id,name,creation_key) VALUES($1,$2,$3) ON CONFLICT DO NOTHING`, user.ID, c.Name, c.Key)
+		var origin, destination any
+		if c.Origin != nil {
+			origin = c.Origin
+			destination = c.Destination
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO trips(owner_id,name,creation_key,origin,destination) VALUES($1,$2,$3,
+ CASE WHEN $4::jsonb IS NOT NULL THEN ST_SetSRID(ST_MakePoint(($4::jsonb->>'longitude')::double precision,($4::jsonb->>'latitude')::double precision),4326)::geography END,
+ CASE WHEN $5::jsonb IS NOT NULL THEN ST_SetSRID(ST_MakePoint(($5::jsonb->>'longitude')::double precision,($5::jsonb->>'latitude')::double precision),4326)::geography END) ON CONFLICT DO NOTHING`, user.ID, c.Name, c.Key, origin, destination)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +156,7 @@ func execute(ctx context.Context, tx pgx.Tx, user identity.User, c Command) (any
 		if err != nil {
 			return nil, err
 		}
-		if t.Name != c.Name {
+		if t.Name != c.Name || !samePoint(t.Origin, c.Origin) || !samePoint(t.Destination, c.Destination) {
 			return nil, problem("idempotency_conflict")
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO trip_members(trip_id,user_id,role) VALUES($1,$2,'owner') ON CONFLICT DO NOTHING`, t.ID, user.ID)

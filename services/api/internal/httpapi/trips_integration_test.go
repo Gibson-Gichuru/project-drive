@@ -80,6 +80,26 @@ func TestTripIntegration(t *testing.T) {
 		check(owner, "POST", "/v1/trips", body, id(101), 400)
 	}
 	check(owner, "POST", "/v1/trips", `{"name":"Trip"}`, "", 400)
+	for _, invalid := range []string{
+		`{"name":"Endpoints","origin":{"latitude":-1,"longitude":36}}`,
+		`{"name":"Endpoints","origin":{"latitude":-91,"longitude":36},"destination":{"latitude":0,"longitude":0}}`,
+		`{"name":"Endpoints","origin":{"latitude":0},"destination":{"latitude":0,"longitude":0}}`,
+		`{"name":"Endpoints","origin":{"latitude":0,"longitude":0,"altitude":5},"destination":{"latitude":0,"longitude":0}}`,
+	} {
+		check(owner, "POST", "/v1/trips", invalid, id(901), 400)
+	}
+	endpointBody := `{"name":"Endpoints","origin":{"latitude":-1.2864,"longitude":36.82},"destination":{"latitude":-1.3152,"longitude":36.8148}}`
+	endpoints := check(owner, "POST", "/v1/trips", endpointBody, id(902), 200)
+	if endpoints["origin"].(map[string]any)["latitude"] != -1.2864 || endpoints["destination"].(map[string]any)["longitude"] != 36.8148 {
+		t.Fatal("endpoint round trip")
+	}
+	again := check(owner, "POST", "/v1/trips", endpointBody, id(902), 200)
+	if again["id"] != endpoints["id"] {
+		t.Fatal("endpoint idempotency")
+	}
+	check(owner, "POST", "/v1/trips", strings.Replace(endpointBody, "36.82", "36.83", 1), id(902), 409)
+	check(owner, "POST", "/v1/trips", `{"name":"Endpoints"}`, id(902), 409)
+	check(outsider, "GET", "/v1/trips/"+endpoints["id"].(string), "", "", 404)
 	created := check(owner, "POST", "/v1/trips", `{"name":"Trip"}`, id(101), 200)
 	trip := created["id"].(string)
 	path := "/v1/trips/" + trip

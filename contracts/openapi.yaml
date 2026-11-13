@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.4.0
+  version: 0.5.0
   description: Phase 0 private developer API. Trip identities are signed offline, expire within 15 minutes and are
     enabled only in explicit local/test environments. Trip endpoints return 401 when auth is disabled (including
     homelab). Navigation remains the private M1 spike. M3 streams require active membership and explicit sharing.
@@ -125,7 +125,7 @@ paths:
         schema: &id001
           type: string
           format: uuid
-        description: Client-generated UUID, reused on network retry. For trip creation, a changed name returns 409.
+        description: Client-generated UUID, reused on network retry. For trip creation, a changed name or endpoint returns 409.
           For invites, duplicate keys return 409 invite_already_created; secrets cannot be recovered. Revoke the
           returned invite ID and use a new key if the secret was lost.
       responses:
@@ -185,6 +185,14 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 120
+                origin:
+                  $ref: '#/components/schemas/Coordinate'
+                destination:
+                  $ref: '#/components/schemas/Coordinate'
+              dependentRequired:
+                origin: [destination]
+                destination: [origin]
+              description: Android requires both endpoints. Legacy M2 requests may omit both; either endpoint alone is invalid.
   /v1/trips/join:
     post:
       operationId: joinTrip
@@ -1024,6 +1032,14 @@ components:
       - started_at
       - ended_at
       properties:
+        origin:
+          oneOf:
+          - $ref: '#/components/schemas/Coordinate'
+          - type: 'null'
+        destination:
+          oneOf:
+          - $ref: '#/components/schemas/Coordinate'
+          - type: 'null'
         id: *id001
         owner_id: *id001
         name:

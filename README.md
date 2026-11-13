@@ -2,7 +2,7 @@
 
 Project Drive is an Android-first, open-source navigation and private convoy app. It is built around OpenStreetMap data, a provider-neutral navigation interface, and self-hosted services. No paid maps, hosted identity provider, proprietary location SDK, or metered API is required. Map rendering, regional OSM data, routing and geocoding are selected and evaluated in M1; the public OSM demo services are not a production dependency.
 
-**M0 is complete. M1 — Open mapping and navigation spike is in progress.** The app now renders the self-hosted Kenya basemap and previews routes; the real-world GPS route gate remains open. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
+**M0, M2 and M3 are complete. M4 — Android convoy is implemented and locally verified with one physical phone and two emulators; its two-real-phone field gate is deferred. M1’s physical journey remains deferred.** The app now renders the self-hosted Kenya basemap and previews routes; the real-world GPS route gate remains open. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
 
 ## Local prerequisites
 
@@ -93,8 +93,8 @@ Project Drive code is licensed under GNU AGPL-3.0-only (see `LICENSE`), which ke
 
 ## M2 trip API
 
-Trip lifecycle, private membership, hashed invitations and offline local/test identities are described in [the M2 report and local setup](docs/milestones/M2.md). The [REST contract](contracts/openapi.yaml) defines endpoints, retry behavior and limits. `make integration` now includes real PostGIS authorization and concurrent invite redemption tests. Homelab does not accept development identities; trip endpoints fail closed there. Android trip screens arrive in M4.
+Trip lifecycle, private membership, hashed invitations and offline local/test identities are described in [the M2 report and local setup](docs/milestones/M2.md). The [REST contract](contracts/openapi.yaml) defines endpoints, retry behavior and limits. `make integration` now includes real PostGIS authorization and concurrent invite redemption tests. Homelab does not accept development identities; trip endpoints fail closed there. Android trip screens and the local device setup are described in [M4](docs/milestones/M4.md).
 
 ## M3 realtime developer API
 
-The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is M4, and M1’s actual journey remains a separately deferred field test.
+The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is implemented in [M4](docs/milestones/M4.md), and M1’s actual journey remains a separately deferred field test.

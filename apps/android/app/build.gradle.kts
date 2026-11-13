@@ -1,4 +1,6 @@
 plugins {
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
@@ -17,6 +19,11 @@ android {
         buildConfigField("String", "MAP_SERVER_URL", "\"${providers.gradleProperty("mapServerUrl").getOrElse("http://127.0.0.1:18081")}\"")
     }
 
+    buildTypes {
+        debug { buildConfigField("String", "API_SERVER_URL", "\"http://127.0.0.1:18082\"") }
+        release { buildConfigField("String", "API_SERVER_URL", "\"https://localhost\"") }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -27,7 +34,14 @@ android {
 
 dependencyLocking { lockAllConfigurations() }
 
+ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
 dependencies {
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.room.runtime)
+    ksp(libs.room.compiler)
+    implementation(libs.okhttp)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

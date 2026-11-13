@@ -1,0 +1,17 @@
+Project Drive convoy dependencies
+
+Dagger/Hilt 2.60.1 — Copyright The Dagger Authors — Apache License 2.0
+https://github.com/google/dagger
+
+AndroidX Room 2.8.5 — Copyright The Android Open Source Project — Apache License 2.0
+https://android.googlesource.com/platform/frameworks/support/
+
+OkHttp 4.12.0 — Copyright Square, Inc. — Apache License 2.0
+https://github.com/square/okhttp
+
+Okio — Copyright Square, Inc. — Apache License 2.0
+https://github.com/square/okio
+
+The Apache License text accompanies this file as Apache-2.0.txt.
+KSP is a build-time Apache-2.0 tool and is not an application service.
+Existing AndroidX, Kotlin and MapLibre notices continue to apply.

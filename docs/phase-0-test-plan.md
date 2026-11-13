@@ -1,6 +1,6 @@
 # Phase 0 validation plan
 
-This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 is next. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
+This is an acceptance record template, not a statement that tests have passed. M0/M2 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 software/device validation passed with one physical phone and two emulators; its two-real-phone field gate is deferred. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
 
 ## Reproducible checks
 
@@ -32,4 +32,14 @@ Public ingress, production authentication, address search, automatic rerouting a
 
 ## Later gates
 
-M2 domain/API authorization and invite/state-transition tests have passed. M3 actual WebSocket/PostGIS clients and revocation/reconnect/limits/TTL/restart tests have passed; see the milestone report. M4 needs two physical phones and denied/approximate permissions, stale state, restart, disconnection and immediate share-off checks. M5 needs actual sensor/GPS trip summary and bounded-buffer/retention evidence. M6 needs reproducible field conditions, receipt-to-broadcast p95, battery measurements, privacy/security review and a demonstration script. These gates have not been executed by the M1 spike.
+M2 domain/API authorization and invite/state-transition tests have passed. M3 actual WebSocket/PostGIS clients and revocation/reconnect/limits/TTL/restart tests have passed; see the milestone report. The owner authorized one real phone plus two emulators for M4 software validation and deferred the two-real-phone field gate. M4 still needs two physical phones and denied/approximate permissions, stale state, restart, disconnection and immediate share-off checks. M5 needs actual sensor/GPS trip summary and bounded-buffer/retention evidence. M6 needs reproducible field conditions, receipt-to-broadcast p95, battery measurements, privacy/security review and a demonstration script. These gates have not been executed by the M1 spike.
+
+## M4 convoy acceptance
+
+- [x] Android safety suite on the physical phone and two emulators; encrypted session/tamper checks and durable cleanup.
+- [x] Three Android clients against the isolated local API; initially unauthorized third client denied; two emulators exchange fixed synthetic public positions, phone receives both.
+- [x] Fresh/stale/expired markers, API outage/restart with reauthorization, explicit off, removal/end, denied-permission callback, rotation/background and actual process-kill cleanup.
+- [x] Native trip create/invite/revoke/join/leave/start/end/cancel workflow; endpoint persistence/idempotency API tests; stationary M1 regression.
+- [ ] Two real phones exchanging actual GPS on a field journey; user deferred this gate. Android approximate-permission field accuracy and real mobile connectivity still need observation. Emulated coordinates and a denied-permission callback are not physical GPS or complete OS permission-dialog field evidence.
+
+See [M4 report](milestones/M4.md) for commands, limits and release evidence. Do not start M5 automatically while field gates are open; record any owner-authorized deferral explicitly.
