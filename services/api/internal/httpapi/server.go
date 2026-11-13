@@ -7,14 +7,20 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
+
+type Options struct {
+	NavigationOptions
+	Trips TripOptions
+}
 
 type Pinger interface {
 	Ping(context.Context) error
 }
 
-func NewHandler(db Pinger, logger *slog.Logger, options ...NavigationOptions) http.Handler {
+func NewHandler(db Pinger, logger *slog.Logger, options ...Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -28,8 +34,12 @@ func NewHandler(db Pinger, logger *slog.Logger, options ...NavigationOptions) ht
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
+	if len(options) == 0 {
+		options = []Options{{}}
+	}
 	if len(options) > 0 {
-		registerNavigation(mux, options[0])
+		registerNavigation(mux, options[0].NavigationOptions)
+		registerTrips(mux, options[0].Trips)
 	}
 	return requestID(logging(logger, mux))
 }
@@ -64,6 +74,9 @@ func logging(logger *slog.Logger, next http.Handler) http.Handler {
 		// Tile identifiers reveal the map viewport; log only the endpoint family.
 		if len(path) >= 6 && path[:6] == "/maps/" {
 			path = "/maps/{asset}"
+		}
+		if strings.HasPrefix(path, "/v1/trips") {
+			path = "/v1/trips/{operation}"
 		}
 		logger.Info("http request", "method", r.Method, "path", path, "request_id", id, "duration_ms", time.Since(started).Milliseconds())
 	})

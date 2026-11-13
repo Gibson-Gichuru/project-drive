@@ -4,23 +4,32 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"projectdrive/services/api/internal/identity"
 )
 
 type Config struct {
-	Addr          string
-	DatabaseURL   string
-	Environment   string
-	TileURL       string
-	NavigationURL string
+	Addr             string
+	DatabaseURL      string
+	Environment      string
+	TileURL          string
+	NavigationURL    string
+	DevAuthPublicKey string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		Addr:          valueOr("API_ADDR", ":8080"),
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		Environment:   valueOr("APP_ENV", "local"),
-		TileURL:       os.Getenv("MAP_TILE_URL"),
-		NavigationURL: os.Getenv("NAVIGATION_URL"),
+		Addr:             valueOr("API_ADDR", ":8080"),
+		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		Environment:      valueOr("APP_ENV", "local"),
+		TileURL:          os.Getenv("MAP_TILE_URL"),
+		NavigationURL:    os.Getenv("NAVIGATION_URL"),
+		DevAuthPublicKey: os.Getenv("DEV_AUTH_PUBLIC_KEY"),
+	}
+	if cfg.DevAuthPublicKey != "" {
+		// Require explicit intent: the default local environment is insufficient for auth.
+		if _, err := identity.PublicKey(os.Getenv("APP_ENV"), cfg.DevAuthPublicKey); err != nil {
+			return Config{}, err
+		}
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")

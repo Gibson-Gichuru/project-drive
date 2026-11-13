@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,7 +14,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"projectdrive/services/api/internal/config"
 	"projectdrive/services/api/internal/httpapi"
+	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/navigation"
+	"projectdrive/services/api/internal/trips"
 )
 
 func main() {
@@ -38,9 +41,17 @@ func main() {
 	if cfg.NavigationURL != "" {
 		engine = navigation.Valhalla{URL: cfg.NavigationURL}
 	}
+	var publicKey ed25519.PublicKey
+	if cfg.DevAuthPublicKey != "" {
+		publicKey, err = identity.PublicKey(cfg.Environment, cfg.DevAuthPublicKey)
+		if err != nil {
+			logger.Error("identity configuration failed")
+			os.Exit(2)
+		}
+	}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger, httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL}, Trips: httpapi.TripOptions{Service: trips.Store{DB: db}, PublicKey: publicKey}}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,

@@ -38,6 +38,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgres://project_drive:local_project_drive_only@db:5432/project_drive?sslmode=disable}
       API_ADDR: ${API_ADDR:-:8080}
       APP_ENV: ${APP_ENV:-local}
+      DEV_AUTH_PUBLIC_KEY: ${DEV_AUTH_PUBLIC_KEY:-}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -46,6 +47,17 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+
+  trip-tests:
+    profiles: [verification]
+    build:
+      context: ../services/api
+      target: integration
+    environment:
+      TEST_DATABASE_URL: ${DATABASE_URL:-postgres://project_drive:local_project_drive_only@db:5432/project_drive?sslmode=disable}
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   project_drive_db:

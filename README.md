@@ -90,3 +90,7 @@ docs/                specification, architecture, roadmap and ADRs
 ## License and data
 
 Project Drive code is licensed under GNU AGPL-3.0-only (see `LICENSE`), which keeps network-served modifications open. Third-party dependencies retain their own licenses. OSM data is subject to the Open Database License and requires attribution. See the M1 decision record for selected map components, source-specific terms, update process and operational requirements before any map stack is deployed.
+
+## M2 trip API
+
+Trip lifecycle, private membership, hashed invitations and offline local/test identities are described in [the M2 report and local setup](docs/milestones/M2.md). The [REST contract](contracts/openapi.yaml) defines endpoints, retry behavior and limits. `make integration` now includes real PostGIS authorization and concurrent invite redemption tests. Homelab does not accept development identities; trip endpoints fail closed there. Android trip screens arrive in M4.

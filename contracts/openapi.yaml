@@ -1,10 +1,12 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.2.0
-  description: Phase 0 private developer API. M1 navigation is enabled only with a self-hosted regional stack. Authentication and trip endpoints arrive in M2.
+  version: 0.3.0
+  description: Phase 0 private developer API. Trip identities are signed offline, expire within 15 minutes and are
+    enabled only in explicit local/test environments. Trip endpoints return 401 when auth is disabled (including
+    homelab). Navigation remains the private M1 spike.
 servers:
-  - url: http://localhost:8080
+- url: http://localhost:8080
 paths:
   /healthz:
     get:
@@ -38,7 +40,8 @@ paths:
     post:
       operationId: navigationRoute
       summary: Calculate a driving route in the self-hosted regional graph
-      description: Private M1 spike only; origin/destination are processed without persistence or request-body logging. Maximum request body is 4096 bytes.
+      description: Private M1 spike only; origin/destination are processed without persistence or request-body logging.
+        Maximum request body is 4096 bytes.
       requestBody:
         required: true
         content:
@@ -46,76 +49,875 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [origin, destination]
+              required:
+              - origin
+              - destination
               properties:
-                origin: {$ref: '#/components/schemas/Coordinate'}
-                destination: {$ref: '#/components/schemas/Coordinate'}
+                origin:
+                  $ref: '#/components/schemas/Coordinate'
+                destination:
+                  $ref: '#/components/schemas/Coordinate'
       responses:
         '200':
           description: Route geometry and instructions, with distances in meters and times in seconds
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/NavigationRoute'}
-        '400': {description: Invalid, missing, unknown or oversized request fields}
-        '422': {description: No drivable route in the regional graph}
-        '503': {description: Navigation is not configured or upstream service is unavailable}
+              schema:
+                $ref: '#/components/schemas/NavigationRoute'
+        '400':
+          description: Invalid
+          missing: null
+          unknown or oversized request fields: null
+        '422':
+          description: No drivable route in the regional graph
+        '503':
+          description: Navigation is not configured or upstream service is unavailable
   /maps/tiles/{z}/{x}/{y}:
     get:
       operationId: vectorTile
       summary: Regional OpenMapTiles vector tile
       parameters:
-        - {in: path, name: z, required: true, schema: {type: integer, minimum: 0, maximum: 14}}
-        - {in: path, name: x, required: true, schema: {type: integer, minimum: 0}}
-        - {in: path, name: y, required: true, schema: {type: integer, minimum: 0}}
+      - in: path
+        name: z
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 14
+      - in: path
+        name: x
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+      - in: path
+        name: y
+        required: true
+        schema:
+          type: integer
+          minimum: 0
       responses:
-        '200': {description: Vector tile with source attribution requirements}
-        '204': {description: Empty tile}
-        '400': {description: Tile coordinate is outside the zoom grid}
-        '404': {description: No tile or map stack is not configured}
-        '503': {description: Tile service is unavailable}
+        '200':
+          description: Vector tile with source attribution requirements
+        '204':
+          description: Empty tile
+        '400':
+          description: Tile coordinate is outside the zoom grid
+        '404':
+          description: No tile or map stack is not configured
+        '503':
+          description: Tile service is unavailable
+  /v1/trips:
+    post:
+      operationId: createTrip
+      summary: Create a private planned trip
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - &id003
+        name: Idempotency-Key
+        in: header
+        required: true
+        schema: &id001
+          type: string
+          format: uuid
+        description: Client-generated UUID, reused on network retry. For trip creation, a changed name returns 409.
+          For invites, duplicate keys return 409 invite_already_created; secrets cannot be recovered. Revoke the
+          returned invite ID and use a new key if the secret was lost.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+  /v1/trips/join:
+    post:
+      operationId: joinTrip
+      summary: Join a planned or active trip with an invite
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+                  pattern: ^[A-Za-z0-9_-]{43}$
+  /v1/trips/{trip}:
+    get:
+      operationId: getTrip
+      summary: Get a trip as an active member
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - &id002
+        name: trip
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/members:
+    get:
+      operationId: listTripMembers
+      summary: List active members, bounded to 100
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Members'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/invites:
+    post:
+      operationId: createInvite
+      summary: Owner creates a single-disclosure invitation
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      - *id003
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - expires_in_s
+              - max_uses
+              properties:
+                expires_in_s:
+                  type: integer
+                  minimum: 60
+                  maximum: 86400
+                max_uses:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+  /v1/trips/{trip}/invites/{invite}:
+    delete:
+      operationId: revokeInvite
+      summary: Owner revokes an invite; repeat is safe
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      - name: invite
+        in: path
+        required: true
+        schema: *id001
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revoked'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/start:
+    post:
+      operationId: startTrip
+      summary: Owner starts a planned trip
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/leave:
+    post:
+      operationId: leaveTrip
+      summary: Member leaves; owner must end or cancel
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Left'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/end:
+    post:
+      operationId: endTrip
+      summary: Owner completes an active trip
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/trips/{trip}/cancel:
+    post:
+      operationId: cancelTrip
+      summary: Owner cancels a planned or active trip
+      security:
+      - DevelopmentBearer: []
+      description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
+        404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
+        Terminal trips retain member read access but cannot start, invite or join.'
+      parameters:
+      - *id002
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trip'
+        '400':
+          description: Invalid request or invalid/expired/revoked/exhausted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing/invalid/expired identity or development auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Active member lacks owner permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Trip/invite not found or caller is not an active member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Invalid transition, owner cannot leave, capacity or idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Database timeout or unavailable; retry with same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Health:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
-        status: { const: ok }
+        status:
+          const: ok
     Ready:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
-        status: { const: ready }
+        status:
+          const: ready
     NotReady:
       type: object
-      required: [status]
+      required:
+      - status
       properties:
-        status: { const: not_ready }
+        status:
+          const: not_ready
     Coordinate:
       type: object
       additionalProperties: false
-      required: [latitude, longitude]
+      required:
+      - latitude
+      - longitude
       properties:
-        latitude: {type: number, minimum: -90, maximum: 90}
-        longitude: {type: number, minimum: -180, maximum: 180}
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
     NavigationRoute:
       type: object
-      required: [geometry, distance_m, duration_s, maneuvers]
+      required:
+      - geometry
+      - distance_m
+      - duration_s
+      - maneuvers
       properties:
         geometry:
           type: array
           minItems: 2
-          items: {$ref: '#/components/schemas/Coordinate'}
-        distance_m: {type: number, minimum: 0}
-        duration_s: {type: number, minimum: 0}
+          items:
+            $ref: '#/components/schemas/Coordinate'
+        distance_m:
+          type: number
+          minimum: 0
+        duration_s:
+          type: number
+          minimum: 0
         maneuvers:
           type: array
           minItems: 1
           items:
             type: object
-            required: [instruction, start_index, end_index, distance_m, duration_s]
+            required:
+            - instruction
+            - start_index
+            - end_index
+            - distance_m
+            - duration_s
             properties:
-              instruction: {type: string}
-              start_index: {type: integer, minimum: 0}
-              end_index: {type: integer, minimum: 0}
-              distance_m: {type: number, minimum: 0}
-              duration_s: {type: number, minimum: 0}
+              instruction:
+                type: string
+              start_index:
+                type: integer
+                minimum: 0
+              end_index:
+                type: integer
+                minimum: 0
+              distance_m:
+                type: number
+                minimum: 0
+              duration_s:
+                type: number
+                minimum: 0
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      - request_id
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+        invite_id:
+          type: string
+          format: uuid
+          description: Only on invite_already_created, for owner recovery by revocation.
+    Trip:
+      type: object
+      required:
+      - id
+      - owner_id
+      - name
+      - status
+      - created_at
+      - started_at
+      - ended_at
+      properties:
+        id: *id001
+        owner_id: *id001
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        status:
+          type: string
+          enum:
+          - planned
+          - active
+          - completed
+          - cancelled
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        ended_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    Member:
+      type: object
+      required:
+      - user_id
+      - display_name
+      - role
+      - sharing_enabled
+      - joined_at
+      properties:
+        user_id: *id001
+        display_name:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - member
+        sharing_enabled:
+          type: boolean
+          description: Always false until explicit sharing support in M3.
+        joined_at:
+          type: string
+          format: date-time
+    Members:
+      type: object
+      required:
+      - members
+      properties:
+        members:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Member'
+    Invite:
+      type: object
+      required:
+      - id
+      - token
+      - expires_at
+      - max_uses
+      properties:
+        id: *id001
+        token:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          description: 256-bit secret returned once. Only its SHA-256 hash is stored.
+        expires_at:
+          type: string
+          format: date-time
+        max_uses:
+          type: integer
+          minimum: 1
+          maximum: 100
+    Left:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          const: left
+    Revoked:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          const: revoked
+  securitySchemes:
+    DevelopmentBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: EdDSA only; project-drive-local issuer, project-drive-api audience, UUID subject, name, iat and
+        exp. Offline local/test issuer only.

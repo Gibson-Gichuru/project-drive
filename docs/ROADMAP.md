@@ -32,7 +32,7 @@ Future work remains outside these phases until separately prioritized: OBD-II, i
 
 ### Current status — 2026-11-13
 
-**M0 — Repository and environment: complete.** The local `make ci` gate passes; GitHub Actions passed on `eade557`; the image publication and homelab deployment workflow passed on `493d2e9`; Flux reports its Kustomization ready; the API and PostGIS each have one ready replica; migration `0001_initial` is applied; and both health endpoints have been checked from the workstation. See [the M0 milestone report](milestones/M0.md) for commit references and the remaining boundary of this result. **M1 is in progress:** the Kenya map/routing stack and Android preview/playback are implemented and undergoing device/homelab verification. Its real-world route-following and coverage gate is still open; see [M1 status](milestones/M1.md).
+**M0 — Repository and environment: complete.** The local `make ci` gate passes; GitHub Actions passed on `eade557`; the image publication and homelab deployment workflow passed on `493d2e9`; Flux reports its Kustomization ready; the API and PostGIS each have one ready replica; migration `0001_initial` is applied; and both health endpoints have been checked from the workstation. See [the M0 milestone report](milestones/M0.md) for commit references and the remaining boundary of this result. **M2 is in progress at the owner’s explicit request**, while M1’s field gate remains open. See [M2 status](milestones/M2.md). **M1 is in progress:** the Kenya map/routing stack and Android preview/playback are implemented and undergoing device/homelab verification. Its real-world route-following and coverage gate is still open; see [M1 status](milestones/M1.md).
 
 Complete these in order. Each milestone produces a runnable increment and a short status report covering changed files, verification, blockers, and the next step.
 
@@ -70,4 +70,4 @@ Complete these in order. Each milestone produces a runnable increment and a shor
 
 ## Working cadence
 
-Complete the remaining M1 gate next. At each milestone review, compare evidence with its gate, record changed scope and decisions, and either close it or list the concrete blocker. Do not begin later milestones until the current gate passes. Revisit phase scope after M6 field results, and re-estimate work before making delivery-date commitments.
+The owner explicitly requested starting M2 on 2026-11-13 before the M1 field gate closed. Implement and verify M2 while preserving that open gate. Complete the remaining M1 physical route/coverage validation before declaring Phase 0 complete. At each milestone review, compare evidence with its gate, record changed scope and decisions, and either close it or list the concrete blocker. Do not begin later milestones until the current gate passes. Revisit phase scope after M6 field results, and re-estimate work before making delivery-date commitments.

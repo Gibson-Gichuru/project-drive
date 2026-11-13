@@ -39,7 +39,7 @@ func TestRouteValidationAndErrors(t *testing.T) {
 	} {
 		var logs bytes.Buffer
 		engine := &fakeEngine{err: tc.err}
-		handler := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(&logs, nil)), NavigationOptions{Engine: engine})
+		handler := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(&logs, nil)), Options{NavigationOptions: NavigationOptions{Engine: engine}})
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest("POST", "/v1/navigation/route", strings.NewReader(tc.body)))
 		if response.Code != tc.status {
@@ -66,7 +66,7 @@ func TestTileProxyAndViewportRedaction(t *testing.T) {
 	}))
 	defer upstream.Close()
 	var logs bytes.Buffer
-	handler := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(&logs, nil)), NavigationOptions{TileURL: upstream.URL})
+	handler := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(&logs, nil)), Options{NavigationOptions: NavigationOptions{TileURL: upstream.URL}})
 	req := httptest.NewRequest("GET", "/maps/tiles/12/2460/2060?location=private", nil)
 	req.Header.Set("Authorization", "private")
 	response := httptest.NewRecorder()

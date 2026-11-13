@@ -23,3 +23,24 @@ func TestNavigationSpikeConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestDevelopmentIdentityEnvironmentGuard(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test")
+	t.Setenv("MAP_TILE_URL", "")
+	t.Setenv("NAVIGATION_URL", "")
+	// A syntactically valid public key is enough to exercise configuration boundaries.
+	t.Setenv("DEV_AUTH_PUBLIC_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+	for _, env := range []string{"", "production", "homelab", "invalid", "local", "test"} {
+		t.Setenv("APP_ENV", env)
+		_, err := Load()
+		want := env == "local" || env == "test"
+		if (err == nil) != want {
+			t.Fatalf("environment %q: accepted=%v", env, err == nil)
+		}
+	}
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("DEV_AUTH_PUBLIC_KEY", "bad")
+	if _, err := Load(); err == nil {
+		t.Fatal("invalid key accepted")
+	}
+}
