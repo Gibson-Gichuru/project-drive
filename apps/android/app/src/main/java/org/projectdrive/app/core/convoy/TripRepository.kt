@@ -27,7 +27,7 @@ class HttpTripRepository @Inject constructor(private val client: OkHttpClient,pr
         key?.let { UUID.fromString(it); request.header("Idempotency-Key", it) }
         request.method(method, if (method == "POST" || method == "PUT") (body?.toString() ?: "").toRequestBody("application/json".toMediaType()) else null)
         client.newCall(request.build()).execute().use { response ->
-            val source = response.body?.source() ?: throw ApiFailure(response.code, "empty_response")
+            val source = response.body.source()
             val buffer = okio.Buffer()
             while (buffer.size <= 131072) { if (source.read(buffer, 8192) == -1L) break }
             require(buffer.size <= 131072) { "Response too large" }

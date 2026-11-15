@@ -92,3 +92,26 @@ func TestSupabaseNeverFollowsRedirectOrAcceptsUnconfirmedUser(t *testing.T) {
 		s.Close()
 	}
 }
+
+func TestHostedSupabasePreservesAuthPrefixAndPublishesOnlyTheApiKey(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/v1/user" || r.Header.Get("apikey") != "sb_publishable_synthetic" || r.Header.Get("Authorization") != "Bearer synthetic" {
+			t.Error("hosted provider request lost its path or headers")
+		}
+		w.WriteHeader(401)
+	}))
+	defer upstream.Close()
+	p, e := NewSupabase(upstream.URL+"/auth/v1", upstream.URL+"/auth/v1")
+	if e != nil {
+		t.Fatal(e)
+	}
+	p.PublishableKey = "sb_publishable_synthetic"
+	if status, _, e := p.Request(context.Background(), "GET", "/user", "synthetic", nil); e != nil || status != 401 {
+		t.Fatal("hosted transport failed")
+	}
+	for _, path := range []string{"/admin", "/auth/v1/../admin", "/auth/v1/"} {
+		if _, e := NewSupabase(upstream.URL+path, upstream.URL+"/auth/v1"); e == nil {
+			t.Fatal("arbitrary Auth path accepted")
+		}
+	}
+}

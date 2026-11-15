@@ -25,8 +25,9 @@ type Authenticator interface {
 // pinned server this checks the JWT signature AND the live session/user rows.
 // No service-role key, shared signing secret, or positive validation cache.
 type Supabase struct {
-	URL, Issuer string
-	Client      *http.Client
+	URL, Issuer    string
+	PublishableKey string
+	Client         *http.Client
 }
 
 func NewSupabase(address, issuer string) (*Supabase, error) {
@@ -34,10 +35,10 @@ func NewSupabase(address, issuer string) (*Supabase, error) {
 	i, ie := url.Parse(issuer)
 	if e != nil || ie != nil || u.Host == "" || i.Host == "" || u.User != nil || i.User != nil ||
 		(u.Scheme != "http" && u.Scheme != "https") || (i.Scheme != "http" && i.Scheme != "https") ||
-		u.RawQuery != "" || i.RawQuery != "" || u.Fragment != "" || i.Fragment != "" || u.Path != "" {
+		u.RawQuery != "" || i.RawQuery != "" || u.Fragment != "" || i.Fragment != "" || (u.Path != "" && u.Path != "/auth/v1") {
 		return nil, errors.New("invalid Supabase origin or issuer")
 	}
-	return &Supabase{URL: address, Issuer: issuer, Client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	return &Supabase{URL: strings.TrimRight(address, "/"), Issuer: issuer, Client: &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
 type supabaseClaims struct {
@@ -52,7 +53,9 @@ type ProviderUser struct {
 	EmailConfirmedAt *time.Time `json:"email_confirmed_at"`
 	Anonymous        bool       `json:"is_anonymous"`
 	UserMetadata     struct {
-		Name string `json:"display_name"`
+		Name       string `json:"display_name"`
+		FullName   string `json:"full_name"`
+		GoogleName string `json:"name"`
 	} `json:"user_metadata"`
 }
 
@@ -85,6 +88,12 @@ func (p *Supabase) Authenticate(ctx context.Context, raw string) (Session, error
 		return Session{}, ErrIdentity
 	}
 	name := strings.TrimSpace(u.UserMetadata.Name)
+	if name == "" {
+		name = strings.TrimSpace(u.UserMetadata.FullName)
+	}
+	if name == "" {
+		name = strings.TrimSpace(u.UserMetadata.GoogleName)
+	}
 	if !ValidName(name, 80) {
 		name = "Driver"
 	}
@@ -100,6 +109,9 @@ func (p *Supabase) Request(ctx context.Context, method, path, bearer string, bod
 	r, err := http.NewRequestWithContext(ctx, method, p.URL+path, bytes.NewReader(body))
 	if err != nil {
 		return 0, nil, ErrProviderUnavailable
+	}
+	if p.PublishableKey != "" {
+		r.Header.Set("apikey", p.PublishableKey)
 	}
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Cache-Control", "no-store")

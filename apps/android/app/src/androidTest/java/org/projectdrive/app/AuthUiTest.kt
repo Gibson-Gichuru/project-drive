@@ -14,32 +14,25 @@ import org.projectdrive.app.core.auth.AuthState
 import org.projectdrive.app.feature.convoy.*
 import org.projectdrive.app.ui.DriveTheme
 
-/** Synthetic content fixtures; no production account, network, Room or GPS. */
+/** Synthetic UI only: never opens a browser or accesses the owner's account. */
 class AuthUiTest {
     @get:Rule val rule=createAndroidComposeRule<ComponentActivity>()
-    @Test fun signInRequiresInputAndClearsPasswordAfterSubmission(){
-        var submitted=false
-        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true),AccountUi(),{}, {email,password,_,_->submitted=email=="driver@example.test"&&password=="synthetic-password"},{},{})}}}
-        rule.onNode(hasText("Sign in") and hasClickAction()).performScrollTo().assertIsNotEnabled()
-        rule.onNodeWithText("Email").performTextInput("driver@example.test")
-        rule.onNodeWithText("Password").performTextInput("synthetic-password")
-        rule.onNode(hasText("Sign in") and hasClickAction()).performScrollTo().performClick()
-        assertTrue(submitted)
-        rule.onNode(hasText("Sign in") and hasClickAction()).assertIsNotEnabled()
-        rule.onNodeWithText("Create an account").assertDoesNotExist()
+    @Test fun googleOpensOnlyOnExplicitTapAndNoPasswordFormIsShown(){
+        var requests=0
+        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true),AccountUi(),{requests++},{},{})}}}
+        assertEquals(0,requests)
+        rule.onNodeWithText("Continue with Google").performScrollTo().performClick();assertEquals(1,requests)
+        rule.onNodeWithText("Email").assertDoesNotExist();rule.onNodeWithText("Password").assertDoesNotExist()
     }
-    @Test fun verificationAndRecoveryOnlyAppearWhenEmailReady(){
-        var mode:AccountMode?=null
-        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true,emailEnabled=true),AccountUi(),{mode=it},{_,_,_,_->},{},{})}}}
-        rule.onNodeWithText("Forgot password?").performScrollTo().performClick()
-        assertEquals(AccountMode.Recover,mode)
-        rule.onNodeWithText("Enter verification code").performScrollTo().performClick()
-        assertEquals(AccountMode.VerifySignup,mode)
-        rule.onNodeWithText("Create an account").assertExists()
+    @Test fun pendingRevocationBlocksNewSignInAndOffersRetry(){
+        var retry=false
+        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true,pendingLogout=true),AccountUi(),{},{},{retry=true})}}}
+        rule.onNodeWithText("Continue with Google").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithText("Retry connection").performScrollTo().performClick();assertTrue(retry)
     }
     @Test fun signedInAccountOffersExplicitSignOutWithoutSharingControl(){
         var signedOut=false
-        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true,userId="synthetic",name="Driver"),AccountUi(),{},{_,_,_,_->},{signedOut=true},{})}}}
+        rule.setContent{DriveTheme{Column(Modifier.verticalScroll(rememberScrollState())){AccountContent(AuthState(ready=true,available=true,userId="synthetic",name="Driver"),AccountUi(),{},{signedOut=true},{})}}}
         rule.onNodeWithText("Hello, Driver").assertIsDisplayed()
         rule.onNodeWithText("Share my live location").assertDoesNotExist()
         rule.onNodeWithText("Sign out").performScrollTo().performClick();assertTrue(signedOut)

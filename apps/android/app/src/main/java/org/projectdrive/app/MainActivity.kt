@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
         account = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.AuthViewModel::class.java]
         renderer = MapLibreRenderer(this, savedInstanceState, BuildConfig.MAP_SERVER_URL, model::selectPin) { mapExploring = it }
         mapExploring = renderer.exploring
-        if(savedInstanceState==null)openSharedLocation(intent)
+        if(savedInstanceState==null || intent.dataString?.let(org.projectdrive.app.core.auth.GoogleCallback::matches)==true)openSharedLocation(intent)
         setContent {
             org.projectdrive.app.ui.DriveTheme {
                 val state by model.state.collectAsState()
@@ -138,6 +138,11 @@ class MainActivity : ComponentActivity() {
         openSharedLocation(intent)
     }
     private fun openSharedLocation(incoming:android.content.Intent) {
+        if(incoming.action==android.content.Intent.ACTION_VIEW && incoming.dataString?.let(org.projectdrive.app.core.auth.GoogleCallback::matches)==true) {
+            account.callback(incoming.dataString!!)
+            incoming.data=null // Keep callback codes out of retained Activity intents.
+            return
+        }
         val text=when(incoming.action) {
             android.content.Intent.ACTION_VIEW -> incoming.dataString
             android.content.Intent.ACTION_SEND -> incoming.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString()

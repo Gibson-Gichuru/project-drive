@@ -20,6 +20,7 @@ import org.projectdrive.app.BuildConfig
 class SessionVault @Inject constructor(@ApplicationContext context: Context):org.projectdrive.app.core.auth.AuthCredentialStore {
     private val file = java.io.File(context.noBackupFilesDir, "convoy-session.aes")
     private val accountFile = java.io.File(context.noBackupFilesDir, "supabase-session.aes")
+    private val pkceFile = java.io.File(context.noBackupFilesDir, "supabase-pkce.aes")
     private val logoutFile = java.io.File(context.noBackupFilesDir, "supabase-logout.aes")
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -64,6 +65,9 @@ class SessionVault @Inject constructor(@ApplicationContext context: Context):org
     override fun saveAccount(value: ByteArray) = encrypt(accountFile, value)
     override fun loadAccount(): ByteArray? = decrypt(accountFile)
     override fun clearAccount() = android.util.AtomicFile(accountFile).delete()
+    override fun savePkce(value: ByteArray) = encrypt(pkceFile, value)
+    override fun loadPkce(): ByteArray? = decrypt(pkceFile)
+    override fun clearPkce() = android.util.AtomicFile(pkceFile).delete()
     override fun saveLogout(value: ByteArray) = encrypt(logoutFile, value)
     override fun loadLogout(): ByteArray? = decrypt(logoutFile)
     override fun clearLogout() = android.util.AtomicFile(logoutFile).delete()

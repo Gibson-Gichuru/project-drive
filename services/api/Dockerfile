@@ -1,5 +1,6 @@
 FROM golang:1.26.11-alpine AS build
 LABEL org.opencontainers.image.source="https://github.com/Gibson-Gichuru/project-drive"
+RUN apk add --no-cache ca-certificates
 WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags="-s -w" -o /out/server ./cmd/server \
@@ -11,6 +12,7 @@ CMD ["go", "test", "-race", "-count=1", "-v", "./internal/httpapi", "-run", "Tes
 
 FROM scratch AS runtime
 WORKDIR /app
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/server /app/server
 COPY --from=build /out/migrate /app/migrate
 COPY --from=build /src/migrations /app/migrations

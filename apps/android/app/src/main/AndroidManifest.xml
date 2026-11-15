@@ -55,6 +55,12 @@
                 <data android:host="google.com" android:pathPrefix="/maps" />
                 <data android:host="goo.gl" android:pathPrefix="/maps/" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="org.projectdrive.outset" android:host="auth" android:path="/callback" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>

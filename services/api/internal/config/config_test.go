@@ -98,3 +98,19 @@ func TestSupabaseConfigurationIsExplicitAndExcludesDevelopmentIdentity(t *testin
 		t.Fatal("development and Supabase identities enabled together")
 	}
 }
+
+func TestGoogleRequiresHostedEndpointAndPublishableKey(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test")
+	t.Setenv("APP_ENV", "homelab")
+	t.Setenv("DEV_AUTH_PUBLIC_KEY", "")
+	t.Setenv("AUTH_GOOGLE_ENABLED", "true")
+	t.Setenv("SUPABASE_AUTH_URL", "https://synthetic.supabase.co/auth/v1")
+	t.Setenv("SUPABASE_AUTH_ISSUER", "https://synthetic.supabase.co/auth/v1")
+	for _, key := range []string{"", "service_role_synthetic", "sb_publishable_x\r\nbad", "sb_publishable_synthetic"} {
+		t.Setenv("SUPABASE_PUBLISHABLE_KEY", key)
+		_, e := Load()
+		if (e == nil) != (key == "sb_publishable_synthetic") {
+			t.Fatal("Google accepted invalid key mode")
+		}
+	}
+}

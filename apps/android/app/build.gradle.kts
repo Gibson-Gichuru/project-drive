@@ -25,7 +25,7 @@ val localTestAuth = URI(apiOrigin).host in setOf("127.0.0.1", "localhost")
 
 android {
     namespace = "org.projectdrive.app"
-    compileSdk = 36
+    compileSdk { version = release(37) { minorApiLevel = 0 } }
 
     defaultConfig {
         applicationId = "org.projectdrive.app"
@@ -58,6 +58,8 @@ dependencyLocking { lockAllConfigurations() }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 dependencies {
+    implementation(libs.supabase.auth)
+    implementation(libs.ktor.client.okhttp)
     constraints {
         implementation(libs.guava.android) { because("Use the maintained Android variant instead of Car App's legacy transitive Guava 31.1") }
     }

@@ -17,6 +17,7 @@ import (
 type AuthOptions struct {
 	Provider      *identity.Supabase
 	EmailEnabled  bool
+	GoogleEnabled bool
 	RevokeSession func(context.Context, string) error
 }
 
@@ -75,7 +76,20 @@ func registerAuth(mux *http.ServeMux, options AuthOptions) {
 	budget := &authBudget{}
 	mux.HandleFunc("GET /v1/auth/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		writeJSON(w, 200, map[string]bool{"available": options.Provider != nil, "email_registration": options.Provider != nil && options.EmailEnabled})
+		googleReady := false
+		if options.GoogleEnabled && options.Provider != nil {
+			status, body, err := options.Provider.Request(r.Context(), "GET", "/settings", "", nil)
+			var settings struct {
+				External map[string]bool `json:"external"`
+			}
+			googleReady = err == nil && status == 200 && json.Unmarshal(body, &settings) == nil && settings.External["google"]
+		}
+		values := map[string]any{"available": options.Provider != nil, "email_registration": options.Provider != nil && options.EmailEnabled, "google": googleReady}
+		if googleReady {
+			values["supabase_url"] = strings.TrimSuffix(options.Provider.URL, "/auth/v1")
+			values["publishable_key"] = options.Provider.PublishableKey
+		}
+		writeJSON(w, 200, values)
 	})
 	for _, operation := range []string{"sign-in", "refresh", "sign-out", "sign-up", "verify", "recover", "password", "me"} {
 		method := "POST"
@@ -86,6 +100,10 @@ func registerAuth(mux *http.ServeMux, options AuthOptions) {
 			w.Header().Set("Cache-Control", "no-store")
 			if r.URL.RawQuery != "" {
 				writeAPIError(w, r, 400, "invalid_request", "query parameters are not accepted")
+				return
+			}
+			if options.GoogleEnabled && operation != "me" && operation != "sign-out" {
+				writeAPIError(w, r, 404, "not_found", "use the Supabase client for authentication")
 				return
 			}
 			p := options.Provider

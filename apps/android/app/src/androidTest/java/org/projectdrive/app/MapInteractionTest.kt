@@ -42,7 +42,7 @@ class MapInteractionTest {
                 @Suppress("DEPRECATION") val restored=output.getParcelable<org.maplibre.android.camera.CameraPosition>(key)
                 assertNotNull("Pending style initialization discarded the saved viewport",restored)
                 assertEquals(-0.28,checkNotNull(restored?.target).latitude,.0001)
-                assertEquals(36.07,checkNotNull(restored?.target).longitude,.0001)
+                assertEquals(36.07,checkNotNull(restored.target).longitude,.0001)
                 assertEquals(14.0,checkNotNull(restored).zoom,.1)
             }finally{renderer.onDestroy()}
         }

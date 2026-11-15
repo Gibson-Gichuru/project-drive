@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/tracking"
+	"strings"
 )
 
 type Config struct {
@@ -19,6 +20,8 @@ type Config struct {
 	DevAuthPublicKey string
 	SupabaseURL      string
 	SupabaseIssuer   string
+	SupabaseKey      string
+	GoogleEnabled    bool
 	AuthEmailEnabled bool
 	Tracking         tracking.Limits
 }
@@ -34,6 +37,8 @@ func Load() (Config, error) {
 		DevAuthPublicKey: os.Getenv("DEV_AUTH_PUBLIC_KEY"),
 		SupabaseURL:      os.Getenv("SUPABASE_AUTH_URL"),
 		SupabaseIssuer:   os.Getenv("SUPABASE_AUTH_ISSUER"),
+		SupabaseKey:      os.Getenv("SUPABASE_PUBLISHABLE_KEY"),
+		GoogleEnabled:    os.Getenv("AUTH_GOOGLE_ENABLED") == "true",
 		AuthEmailEnabled: os.Getenv("AUTH_EMAIL_ENABLED") == "true",
 	}
 	var err error
@@ -57,6 +62,18 @@ func Load() (Config, error) {
 		issuer, _ := url.Parse(cfg.SupabaseIssuer)
 		if (cfg.Environment == "homelab" || cfg.Environment == "production") && issuer.Scheme != "https" {
 			return Config{}, errors.New("public authentication issuer must use HTTPS")
+		}
+	}
+	if value := os.Getenv("AUTH_GOOGLE_ENABLED"); value != "" && value != "true" && value != "false" {
+		return Config{}, errors.New("AUTH_GOOGLE_ENABLED must be true or false")
+	}
+	if cfg.GoogleEnabled && cfg.AuthEmailEnabled {
+		return Config{}, errors.New("Google and email gateway modes are mutually exclusive")
+	}
+	if cfg.GoogleEnabled {
+		u, e := url.Parse(cfg.SupabaseURL)
+		if e != nil || u.Scheme != "https" || u.Path != "/auth/v1" || cfg.SupabaseIssuer != cfg.SupabaseURL || !strings.HasPrefix(cfg.SupabaseKey, "sb_publishable_") || strings.ContainsAny(cfg.SupabaseKey, "\r\n") {
+			return Config{}, errors.New("Google authentication requires a hosted HTTPS Supabase Auth endpoint and publishable key")
 		}
 	}
 	if os.Getenv("AUTH_EMAIL_ENABLED") != "" && os.Getenv("AUTH_EMAIL_ENABLED") != "true" && os.Getenv("AUTH_EMAIL_ENABLED") != "false" {

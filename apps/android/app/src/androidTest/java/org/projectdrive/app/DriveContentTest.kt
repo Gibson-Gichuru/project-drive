@@ -42,7 +42,7 @@ class DriveContentTest {
         for(node in matching(label)) {
             var current:AccessibilityNodeInfo?=node
             repeat(5) {
-                if(current?.isClickable==true && current?.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)return
+                if(current?.isClickable==true && current.performAction(AccessibilityNodeInfo.ACTION_CLICK)==true)return
                 current=current?.parent
             }
         }

@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.8.0
-  description: Outset private convoy API with self-hosted Supabase Auth. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Email registration/recovery remain disabled; the owner-selected Google OAuth migration is in progress.
+  version: 0.9.0
+  description: Outset private convoy API with hosted Supabase Auth and Google browser sign-in through its Kotlin client. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Password authentication routes are available only in standalone local provider fixtures and return 404 in hosted Google mode. OAuth exchange and refresh go directly through the Supabase client; Go remains the authorization boundary.
 servers:
 - url: http://localhost:8080
 paths:
@@ -33,6 +33,7 @@ paths:
   /v1/auth/sign-in:
     post:
       operationId: authSignIn
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Sign in
       responses:
         '200':
@@ -46,6 +47,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSession'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -77,6 +80,7 @@ paths:
   /v1/auth/sign-up:
     post:
       operationId: authSignUp
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Sign up
       responses:
         '200':
@@ -90,6 +94,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthAccepted'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -126,6 +132,7 @@ paths:
   /v1/auth/refresh:
     post:
       operationId: authRefresh
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Refresh
       responses:
         '200':
@@ -139,6 +146,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSession'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -165,6 +174,7 @@ paths:
   /v1/auth/verify:
     post:
       operationId: authVerify
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Verify
       responses:
         '200':
@@ -178,6 +188,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthSession'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -214,6 +226,7 @@ paths:
   /v1/auth/recover:
     post:
       operationId: authRecover
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Recover
       responses:
         '200':
@@ -227,6 +240,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthAccepted'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -252,6 +267,7 @@ paths:
   /v1/auth/password:
     post:
       operationId: authPassword
+      description: Standalone provider test mode only; returns 404 in hosted Google mode.
       summary: Password
       responses:
         '200':
@@ -265,6 +281,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthAccepted'
+        '404':
+          $ref: '#/components/responses/AuthError'
         '400':
           $ref: '#/components/responses/AuthError'
         '401':
@@ -1447,11 +1465,22 @@ components:
       required:
       - available
       - email_registration
+      - google
       properties:
         available:
           type: boolean
         email_registration:
           type: boolean
+        google:
+          type: boolean
+          description: True only when the hosted provider currently enables Google; false on configuration or provider failure.
+        supabase_url:
+          type: string
+          format: uri
+          description: Hosted project origin; present only when Google is ready.
+        publishable_key:
+          type: string
+          description: Public SDK client key; never a service-role key. Present only when Google is ready.
     AuthUser:
       type: object
       required:

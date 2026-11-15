@@ -47,3 +47,34 @@ func TestAuthGatewayRejectsProxyExpansionAndDisablesUnreadyEmail(t *testing.T) {
 		t.Fatal("unsafe error response")
 	}
 }
+
+func TestGoogleModeExposesOnlyPublicConfigAndNoPasswordProxy(t *testing.T) {
+	var calls atomic.Int64
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.URL.Path == "/auth/v1/settings" {
+			_, _ = w.Write([]byte(`{"external":{"google":true}}`))
+			return
+		}
+		w.WriteHeader(401)
+	}))
+	defer upstream.Close()
+	p, _ := identity.NewSupabase(upstream.URL+"/auth/v1", upstream.URL+"/auth/v1")
+	p.PublishableKey = "sb_publishable_synthetic"
+	h := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Auth: AuthOptions{Provider: p, GoogleEnabled: true}})
+	for _, operation := range []string{"sign-in", "sign-up", "refresh", "verify", "password", "recover"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("POST", "/v1/auth/"+operation, strings.NewReader(`{}`)))
+		if w.Code != 404 {
+			t.Fatalf("password proxy %s remains reachable: %d", operation, w.Code)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Fatal("password requests reached provider")
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/v1/auth/config", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"google":true`) || !strings.Contains(w.Body.String(), `sb_publishable_synthetic`) || strings.Contains(w.Body.String(), `service_role`) {
+		t.Fatal("invalid public config")
+	}
+}
