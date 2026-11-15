@@ -3,6 +3,7 @@
 package identity
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
@@ -62,6 +63,9 @@ func PublicKey(environment, encoded string) (ed25519.PublicKey, error) {
 type Session struct {
 	User      User
 	ExpiresAt time.Time
+	SessionID string
+	// Check revalidates provider session revocation; never serialized or logged.
+	Check func(context.Context) error
 }
 
 func Verify(key ed25519.PublicKey, raw string) (User, error) {

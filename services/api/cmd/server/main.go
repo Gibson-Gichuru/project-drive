@@ -52,6 +52,18 @@ func main() {
 		}
 	}
 	var publicKey ed25519.PublicKey
+	var provider *identity.Supabase
+	if cfg.SupabaseURL != "" {
+		provider, err = identity.NewSupabase(cfg.SupabaseURL, cfg.SupabaseIssuer)
+		if err != nil {
+			logger.Error("identity configuration failed")
+			os.Exit(2)
+		}
+	}
+	var authenticator identity.Authenticator
+	if provider != nil {
+		authenticator = provider
+	}
 	if cfg.DevAuthPublicKey != "" {
 		publicKey, err = identity.PublicKey(cfg.Environment, cfg.DevAuthPublicKey)
 		if err != nil {
@@ -85,7 +97,7 @@ func main() {
 	coordinator := tracking.Coordinator{Hub: hub, Base: trips.Store{DB: db}}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL, Places: places, PlaceIndexPath: cfg.PlaceIndexPath}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey}, Tracking: hub, Telemetry: telemetryStore}),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL, Places: places, PlaceIndexPath: cfg.PlaceIndexPath}, Auth: httpapi.AuthOptions{Provider: provider, EmailEnabled: cfg.AuthEmailEnabled, RevokeSession: hub.RevokeSession}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey, Authenticator: authenticator}, Tracking: hub, Telemetry: telemetryStore}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,

@@ -153,6 +153,14 @@ func (h *Hub) reconcile(ctx context.Context, trip string) error {
 	}
 	live.state = state
 	for _, sub := range h.broadcaster.ForTrip(trip) {
+		if sub.check != nil && sub.check(ctx) != nil {
+			h.stop(sub, "access_revoked")
+			h.positions.Remove(trip, sub.UserID)
+			live.nextGeneration++
+			live.generations[sub.UserID] = live.nextGeneration
+			h.broadcast(trip, Delivery{Event: h.event(trip, "participant.left", map[string]string{"user_id": sub.UserID, "reason": "access_revoked"})})
+			continue
+		}
 		if err := state.authorize(sub.UserID); err != nil {
 			h.stop(sub, err.Error())
 		}
@@ -215,7 +223,7 @@ func (h *Hub) Subscribe(ctx context.Context, trip string, session identity.Sessi
 		}
 		h.states[trip] = live
 	}
-	s := &Subscription{TripID: trip, UserID: session.User.ID, ExpiresAt: session.ExpiresAt, queue: make(chan Delivery, h.limits.QueueSize), stopped: make(chan string, 1), active: true, tokens: float64(h.limits.Burst), lastRefill: h.now()}
+	s := &Subscription{TripID: trip, UserID: session.User.ID, SessionID: session.SessionID, ExpiresAt: session.ExpiresAt, check: session.Check, queue: make(chan Delivery, h.limits.QueueSize), stopped: make(chan string, 1), active: true, tokens: float64(h.limits.Burst), lastRefill: h.now()}
 	h.broadcaster.Add(s)
 	s.queue <- Delivery{Snapshot: true}
 	return s, nil
@@ -386,4 +394,28 @@ func (h *Hub) ConnectionCount(ctx context.Context) (int, error) {
 	}
 	defer h.unlock()
 	return h.broadcaster.Count(), nil
+}
+
+// RevokeSession shares the delivery gate. Logout acknowledgement cannot be
+// followed by a queued coordinate from the revoked session.
+func (h *Hub) RevokeSession(ctx context.Context, id string) error {
+	if !identity.UUID(id) {
+		return ErrInvalid
+	}
+	if err := h.lock(ctx); err != nil {
+		return err
+	}
+	defer h.unlock()
+	for trip, live := range h.states {
+		for _, s := range h.broadcaster.ForTrip(trip) {
+			if s.SessionID == id {
+				h.stop(s, "access_revoked")
+				h.positions.Remove(trip, s.UserID)
+				live.nextGeneration++
+				live.generations[s.UserID] = live.nextGeneration
+				h.broadcast(trip, Delivery{Event: h.event(trip, "participant.left", map[string]string{"user_id": s.UserID, "reason": "access_revoked"})})
+			}
+		}
+	}
+	return nil
 }

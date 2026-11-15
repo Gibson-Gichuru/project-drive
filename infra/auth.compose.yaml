@@ -1,0 +1,94 @@
+# Opt-in, disposable local Auth acceptance stack. Mailpit captures synthetic mail
+# and never relays it. All published ports bind loopback. Secrets come from a
+# private --env-file generated for a single run; never use the example DB password.
+services:
+  auth-app-db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: outset_test
+      POSTGRES_USER: outset_test
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U outset_test -d outset_test']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+  auth-migrate:
+    build: {context: ../services/api, target: runtime}
+    command: [/app/migrate]
+    environment:
+      DATABASE_URL: postgres://outset_test:${AUTH_DB_PASSWORD}@auth-app-db:5432/outset_test?sslmode=disable
+      MIGRATIONS_DIR: /app/migrations
+    depends_on:
+      auth-app-db: {condition: service_healthy}
+  auth-api:
+    build: {context: ../services/api, target: runtime}
+    command: [/app/server]
+    environment:
+      DATABASE_URL: postgres://outset_test:${AUTH_DB_PASSWORD}@auth-app-db:5432/outset_test?sslmode=disable
+      APP_ENV: test
+      SUPABASE_AUTH_URL: http://auth:9999
+      SUPABASE_AUTH_ISSUER: http://127.0.0.1:18080/v1/auth
+      AUTH_EMAIL_ENABLED: 'true'
+    depends_on:
+      auth-migrate: {condition: service_completed_successfully}
+    ports: ['127.0.0.1:18080:8080']
+  auth-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: outset_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?private auth test password required}
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U postgres -d outset_auth']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    tmpfs: [/var/lib/postgresql/data]
+    volumes: ['./auth-init.sql:/docker-entrypoint-initdb.d/01-auth.sql:ro']
+  auth-mail:
+    image: axllent/mailpit:v1.33.1
+    environment:
+      MP_MAX_MESSAGES: '30'
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports: ['127.0.0.1:18025:8025']
+  auth:
+    image: supabase/gotrue:v2.197.0@sha256:1736a63078f5922b198c4cbe50f80ab9a2d3b54fe8b7b6cfb2e9dc5dbbc12c6b
+    depends_on:
+      auth-db: {condition: service_healthy}
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${AUTH_DB_PASSWORD}@auth-db:5432/outset_auth
+      GOTRUE_DB_NAMESPACE: auth
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: '9999'
+      API_EXTERNAL_URL: http://127.0.0.1:18080/v1/auth
+      GOTRUE_SITE_URL: http://127.0.0.1:18080
+      GOTRUE_JWT_ISSUER: http://127.0.0.1:18080/v1/auth
+      GOTRUE_JWT_SECRET: ${AUTH_JWT_SECRET:?private auth signing secret required}
+      GOTRUE_JWT_EXP: '900'
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_DISABLE_SIGNUP: 'false'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_PHONE_ENABLED: 'false'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      GOTRUE_MAILER_AUTOCONFIRM: 'false'
+      GOTRUE_MAILER_OTP_EXP: '900'
+      GOTRUE_MAILER_OTP_LENGTH: '6'
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://auth-api:8080/v1/auth/templates/confirmation
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: http://auth-api:8080/v1/auth/templates/recovery
+      GOTRUE_SMTP_HOST: auth-mail
+      GOTRUE_SMTP_PORT: '1025'
+      GOTRUE_SMTP_ADMIN_EMAIL: noreply@example.test
+      GOTRUE_SMTP_SENDER_NAME: Outset test
+      GOTRUE_SMTP_MAX_FREQUENCY: 1s
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: '100'
+      GOTRUE_PASSWORD_MIN_LENGTH: '12'
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: 'true'
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: '10'
+      GOTRUE_LOG_LEVEL: error
+    ports: ['127.0.0.1:19999:9999']

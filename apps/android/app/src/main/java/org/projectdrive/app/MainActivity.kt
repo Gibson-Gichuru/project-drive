@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var locationForOrigin=false
     private val mapLocationPreference by lazy { MapLocationPreference(this) }
     private lateinit var convoy: org.projectdrive.app.feature.convoy.ConvoyViewModel
+    private lateinit var account: org.projectdrive.app.feature.convoy.AuthViewModel
     private var sessionImport = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
             lifecycleScope.launch {
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity() {
         model = ViewModelProvider(this)[NavigationViewModel::class.java]
         telemetry = ViewModelProvider(this)[org.projectdrive.app.feature.telemetry.TelemetryViewModel::class.java]
         convoy = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.ConvoyViewModel::class.java]
+        account = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.AuthViewModel::class.java]
         renderer = MapLibreRenderer(this, savedInstanceState, BuildConfig.MAP_SERVER_URL, model::selectPin) { mapExploring = it }
         mapExploring = renderer.exploring
         if(savedInstanceState==null)openSharedLocation(intent)
@@ -99,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 }
                 var showLocationDisclosure by remember { mutableStateOf(false) }
                 org.projectdrive.app.ui.DriveScreen(
-                    state, model, group, convoy, recording, telemetry, renderer, mapExploring, locationEnabled = state.gpsWanted && hasLocationPermission(),
+                    state, model, group, convoy, recording, telemetry, renderer, mapExploring, account=account, locationEnabled = state.gpsWanted && hasLocationPermission(),
                     useLocation = { locationForOrigin=true;showLocationDisclosure=true },
                     locateMap = { locationForOrigin=false;showLocationDisclosure=true },
                     stopLocation = {

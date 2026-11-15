@@ -17,8 +17,10 @@ import javax.inject.Singleton
 import org.projectdrive.app.BuildConfig
 
 @Singleton
-class SessionVault @Inject constructor(@ApplicationContext context: Context) {
+class SessionVault @Inject constructor(@ApplicationContext context: Context):org.projectdrive.app.core.auth.AuthCredentialStore {
     private val file = java.io.File(context.noBackupFilesDir, "convoy-session.aes")
+    private val accountFile = java.io.File(context.noBackupFilesDir, "supabase-session.aes")
+    private val logoutFile = java.io.File(context.noBackupFilesDir, "supabase-logout.aes")
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey("convoy-session", null) as? SecretKey)?.let { return it }
@@ -58,4 +60,25 @@ class SessionVault @Inject constructor(@ApplicationContext context: Context) {
         parse(cipher.doFinal(bytes.copyOfRange(1 + size, bytes.size)))
     }.getOrNull()
     fun clear() { android.util.AtomicFile(file).delete() }
+
+    override fun saveAccount(value: ByteArray) = encrypt(accountFile, value)
+    override fun loadAccount(): ByteArray? = decrypt(accountFile)
+    override fun clearAccount() = android.util.AtomicFile(accountFile).delete()
+    override fun saveLogout(value: ByteArray) = encrypt(logoutFile, value)
+    override fun loadLogout(): ByteArray? = decrypt(logoutFile)
+    override fun clearLogout() = android.util.AtomicFile(logoutFile).delete()
+    private fun encrypt(target: java.io.File, bytes: ByteArray) {
+        require(bytes.size in 1..12288)
+        val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE,key()) }
+        val encrypted=cipher.doFinal(bytes)
+        val atomic=android.util.AtomicFile(target);val out=atomic.startWrite()
+        try {out.write(cipher.iv.size);out.write(cipher.iv);out.write(encrypted);atomic.finishWrite(out)}
+        catch(e:Exception){atomic.failWrite(out);throw e}
+    }
+    private fun decrypt(target:java.io.File):ByteArray? {
+        if(!target.exists())return null
+        val bytes=android.util.AtomicFile(target).readFully();require(bytes.size in 30..16384 && bytes[0].toInt()==12)
+        val cipher=Cipher.getInstance("AES/GCM/NoPadding").apply {init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(1,13)))}
+        return cipher.doFinal(bytes.copyOfRange(13,bytes.size))
+    }
 }

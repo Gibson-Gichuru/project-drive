@@ -37,7 +37,7 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
         JourneyCard {
             DriveIcon(DriveSymbol.Shield,modifier=Modifier.size(24.dp),tint=MaterialTheme.colorScheme.secondary)
             Text("Sign-in is needed for convoys",style=MaterialTheme.typography.titleMedium)
-            Text(if(BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to try this private test environment." else "Convoy sign-in is not available yet. Maps and local journey recording are ready to use.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(if(BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to try this private test environment." else "Sign in above to create or join a private convoy. Maps and local journey recording are ready to use without an account.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
         return
     }

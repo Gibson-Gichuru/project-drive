@@ -1,0 +1,49 @@
+package httpapi
+
+import (
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"projectdrive/services/api/internal/identity"
+	"strings"
+	"sync/atomic"
+	"testing"
+)
+
+func TestAuthGatewayRejectsProxyExpansionAndDisablesUnreadyEmail(t *testing.T) {
+	var calls atomic.Int64
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":"private provider details"}`))
+	}))
+	defer upstream.Close()
+	p, _ := identity.NewSupabase(upstream.URL, "https://auth.test")
+	h := NewHandler(fakePinger{}, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{Auth: AuthOptions{Provider: p}})
+	for _, tc := range []struct {
+		path, body string
+		want       int
+	}{
+		{"sign-in", `{"email":"synthetic@example.test","password":"test","role":"service_role"}`, 400},
+		{"sign-in", `{"email":"synthetic@example.test","password":"test"} {}`, 400},
+		{"sign-up", `{"email":"synthetic@example.test","password":"test"}`, 503},
+		{"recover", `{"email":"synthetic@example.test"}`, 503},
+		{"refresh", `{"refresh_token":""}`, 400},
+		{"sign-in?redirect_to=https://untrusted.test", `{}`, 400},
+	} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("POST", "/v1/auth/"+tc.path, strings.NewReader(tc.body)))
+		if w.Code != tc.want || w.Header().Get("Cache-Control") != "no-store" {
+			t.Fatal(tc.path, w.Code)
+		}
+	}
+	if calls.Load() != 0 {
+		t.Fatal("invalid request reached provider")
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("POST", "/v1/auth/sign-in", strings.NewReader(`{"email":"synthetic@example.test","password":"test"}`)))
+	if w.Code != 400 || strings.Contains(w.Body.String(), "private provider details") {
+		t.Fatal("unsafe error response")
+	}
+}

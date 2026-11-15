@@ -1,6 +1,9 @@
 package tracking
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Event struct {
 	Type       string `json:"type"`
@@ -21,7 +24,9 @@ type Delivery struct {
 }
 type Subscription struct {
 	TripID, UserID string
+	SessionID      string
 	ExpiresAt      time.Time
+	check          func(context.Context) error
 	queue          chan Delivery
 	stopped        chan string
 	active         bool

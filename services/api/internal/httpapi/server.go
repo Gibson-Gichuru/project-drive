@@ -15,6 +15,7 @@ import (
 
 type Options struct {
 	NavigationOptions
+	Auth      AuthOptions
 	Trips     TripOptions
 	Tracking  *tracking.Hub
 	Telemetry *telemetry.Store
@@ -43,6 +44,7 @@ func NewHandler(db Pinger, logger *slog.Logger, options ...Options) http.Handler
 	}
 	if len(options) > 0 {
 		registerNavigation(mux, options[0].NavigationOptions)
+		registerAuth(mux, options[0].Auth)
 		registerTrips(mux, options[0].Trips)
 		registerTelemetry(mux, options[0].Trips, options[0].Telemetry)
 		registerStream(mux, options[0].Trips, options[0].Tracking)

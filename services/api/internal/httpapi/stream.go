@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"crypto/ed25519"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,14 +16,13 @@ import (
 func registerStream(mux *http.ServeMux, options TripOptions, hub *tracking.Hub) {
 	mux.HandleFunc("GET /v1/trips/{trip}/stream", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		raw := r.Header.Get("Authorization")
-		if hub == nil || len(options.PublicKey) != ed25519.PublicKeySize || !strings.HasPrefix(raw, "Bearer ") || len(raw) > 4096 {
+		if hub == nil {
 			unauthorized(w, r)
 			return
 		}
-		session, err := identity.Authenticate(options.PublicKey, strings.TrimPrefix(raw, "Bearer "))
+		session, err := options.authenticate(r)
 		if err != nil {
-			unauthorized(w, r)
+			authenticationError(w, r, err)
 			return
 		}
 		if r.URL.RawQuery != "" {

@@ -62,3 +62,39 @@ func TestPlaceIndexRequiresMapStackAndAbsolutePath(t *testing.T) {
 		}
 	}
 }
+
+func TestSupabaseConfigurationIsExplicitAndExcludesDevelopmentIdentity(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test")
+	t.Setenv("APP_ENV", "homelab")
+	t.Setenv("MAP_TILE_URL", "")
+	t.Setenv("NAVIGATION_URL", "")
+	t.Setenv("DEV_AUTH_PUBLIC_KEY", "")
+	for _, tc := range []struct {
+		url, issuer, email string
+		valid              bool
+	}{
+		{"http://auth:9999", "https://auth.example.test/v1/auth", "false", true},
+		{"http://auth:9999", "http://auth.example.test/v1/auth", "false", false},
+		{"http://auth:9999", "", "false", false},
+		{"", "https://auth.example.test/v1/auth", "false", false},
+		{"http://user:password@auth:9999", "https://auth.example.test/v1/auth", "true", false},
+		{"", "", "true", false},
+		{"http://auth:9999", "https://auth.example.test/v1/auth", "yes", false},
+	} {
+		t.Setenv("SUPABASE_AUTH_URL", tc.url)
+		t.Setenv("SUPABASE_AUTH_ISSUER", tc.issuer)
+		t.Setenv("AUTH_EMAIL_ENABLED", tc.email)
+		_, err := Load()
+		if (err == nil) != tc.valid {
+			t.Fatal("Supabase configuration boundary mismatch")
+		}
+	}
+	t.Setenv("APP_ENV", "local")
+	t.Setenv("SUPABASE_AUTH_URL", "http://auth:9999")
+	t.Setenv("SUPABASE_AUTH_ISSUER", "https://auth.example.test/v1/auth")
+	t.Setenv("AUTH_EMAIL_ENABLED", "false")
+	t.Setenv("DEV_AUTH_PUBLIC_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+	if _, err := Load(); err == nil {
+		t.Fatal("development and Supabase identities enabled together")
+	}
+}

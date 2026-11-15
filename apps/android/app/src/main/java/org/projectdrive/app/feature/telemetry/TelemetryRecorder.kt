@@ -23,6 +23,7 @@ data class TelemetryState(
 class TelemetryRecorder @Inject constructor(
     private val source: TelemetrySource, private val store: LocalTelemetryStore,
     private val api: TripRepository, private val vault: SessionVault,
+    private val auth:org.projectdrive.app.core.auth.AuthRepository,
     @param:dagger.hilt.android.qualifiers.ApplicationContext private val context:android.content.Context,
 ) {
     private val sessionScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
@@ -106,7 +107,7 @@ class TelemetryRecorder @Inject constructor(
         mutable.update { it.copy(uploading=true) }
         sessionScope.launch {
             try {
-                val session=withContext(Dispatchers.IO){vault.load()}?:error("Session unavailable")
+                val session=uploadSession()
                 val bound=store.bind(recording.id,trip.id,session.userId)
                 val summary=telemetryUploadSummary(bound.summaryJSON)
                 val body=JSONObject().put("version",1).put("recording_id",bound.id).put("summary",summary).put("events",JSONArray(bound.eventsJSON))
@@ -121,7 +122,7 @@ class TelemetryRecorder @Inject constructor(
     }
     fun remote(trip: Trip) { if (mutable.value.uploading) return
         mutable.update { it.copy(uploading=true) };sessionScope.launch {
-            try { val session=withContext(Dispatchers.IO){vault.load()}?:error("Session unavailable")
+            try { val session=uploadSession()
                 val response=api.request(session,"GET","/v1/trips/${trip.id}/summary")
                 mutable.update { it.copy(remoteCount=response.getJSONArray("recordings").length(),message="Loaded only your own server summaries") }
             }catch (_:Exception){mutable.update { it.copy(message="Server summary unavailable · check session and membership") }}
@@ -129,6 +130,7 @@ class TelemetryRecorder @Inject constructor(
         }
     }
     private suspend fun refreshRecords(){persistence.withLock{val records=store.list();mutable.update { it.copy(recordings=records) }}}
+    private suspend fun uploadSession():Session=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)withContext(Dispatchers.IO){vault.load()}?:error("Session unavailable") else auth.currentSession()
     private fun local(recordingId: String,result: TelemetryResult,active: Boolean):LocalRecording {
         val summary=result.summary.toJSON()
         summary.put("local_report",result.localReportJSON())

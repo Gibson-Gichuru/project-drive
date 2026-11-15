@@ -2,13 +2,11 @@ package httpapi
 
 import (
 	"context"
-	"crypto/ed25519"
 	"errors"
 	"io"
 	"net/http"
 	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/telemetry"
-	"strings"
 	"time"
 )
 
@@ -20,16 +18,16 @@ func registerTelemetry(mux *http.ServeMux, auth TripOptions, store *telemetry.St
 		}
 		mux.HandleFunc(method+" "+path, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-store")
-			bearer := r.Header.Get("Authorization")
-			if store == nil || len(auth.PublicKey) != ed25519.PublicKeySize || !strings.HasPrefix(bearer, "Bearer ") || len(bearer) > 4096 {
+			if store == nil {
 				unauthorized(w, r)
 				return
 			}
-			user, err := identity.Verify(auth.PublicKey, strings.TrimPrefix(bearer, "Bearer "))
+			session, err := auth.authenticate(r)
 			if err != nil {
-				unauthorized(w, r)
+				authenticationError(w, r, err)
 				return
 			}
+			user := session.User
 			trip := r.PathValue("trip")
 			if !identity.UUID(trip) || r.URL.RawQuery != "" {
 				writeAPIError(w, r, 400, "invalid_request", "valid trip UUID and no query required")

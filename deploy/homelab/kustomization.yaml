@@ -5,6 +5,8 @@ resources:
   - postgres.yaml
   - api.yaml
   - maps.yaml
+  - auth.yaml
+  - smtp.yaml
 images:
   - name: ghcr.io/gibson-gichuru/project-drive
     newTag: bootstrap

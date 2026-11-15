@@ -18,7 +18,7 @@ interface TripRepository {
     fun trip(json: JSONObject): Trip
 }
 @Singleton
-class HttpTripRepository @Inject constructor(private val client: OkHttpClient) : TripRepository {
+class HttpTripRepository @Inject constructor(private val client: OkHttpClient,private val auth:org.projectdrive.app.core.auth.AuthRepository?=null) : TripRepository {
     override suspend fun request(session: Session, method: String, path: String, body: JSONObject?, key: String?): JSONObject = withContext(Dispatchers.IO) {
         require(path.matches(Regex("/v1/trips(?:/[a-zA-Z0-9-]+){0,4}")))
         require(session.expiresAtMillis > System.currentTimeMillis()) { "Session expired" }
@@ -32,7 +32,7 @@ class HttpTripRepository @Inject constructor(private val client: OkHttpClient) :
             while (buffer.size <= 131072) { if (source.read(buffer, 8192) == -1L) break }
             require(buffer.size <= 131072) { "Response too large" }
             val json = JSONObject(buffer.readUtf8())
-            if (!response.isSuccessful) throw ApiFailure(response.code, json.optString("code", "request_failed"), json.optString("invite_id").takeIf { it.isNotEmpty() })
+            if (!response.isSuccessful) {if(response.code==401&&!BuildConfig.LOCAL_TEST_AUTH)auth?.rejected(session);throw ApiFailure(response.code, json.optString("code", "request_failed"), json.optString("invite_id").takeIf { it.isNotEmpty() })}
             json
         }
     }

@@ -1,14 +1,347 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.7.0
-  description: Phase 0 private developer API. Trip identities are signed offline, expire within 15 minutes and are
-    enabled only in explicit local/test environments. Trip endpoints return 401 when auth is disabled (including
-    homelab). Navigation/maps/search are public prototype endpoints through the owner-approved HTTPS tunnel; operational endpoints stay private. M3 streams require active membership and explicit sharing.
-    Live positions are ephemeral and single-instance.
+  version: 0.8.0
+  description: Outset private convoy API with self-hosted Supabase Auth. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Email registration/recovery are gated on operational SMTP delivery.
 servers:
 - url: http://localhost:8080
 paths:
+  /v1/auth/config:
+    get:
+      operationId: authConfig
+      summary: Config
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthConfig'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+  /v1/auth/sign-in:
+    post:
+      operationId: authSignIn
+      summary: Sign in
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+                  writeOnly: true
+  /v1/auth/sign-up:
+    post:
+      operationId: authSignUp
+      summary: Sign up
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthAccepted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              - password
+              - display_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 1024
+                  writeOnly: true
+                display_name:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+  /v1/auth/refresh:
+    post:
+      operationId: authRefresh
+      summary: Refresh
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                  writeOnly: true
+  /v1/auth/verify:
+    post:
+      operationId: authVerify
+      summary: Verify
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              - token
+              - type
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                token:
+                  type: string
+                  pattern: ^[0-9]{6}$
+                  writeOnly: true
+                type:
+                  type: string
+                  enum:
+                  - signup
+                  - recovery
+  /v1/auth/recover:
+    post:
+      operationId: authRecover
+      summary: Recover
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthAccepted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+  /v1/auth/password:
+    post:
+      operationId: authPassword
+      summary: Password
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthAccepted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      security:
+      - UserBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - password
+              properties:
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 1024
+                  writeOnly: true
+  /v1/auth/sign-out:
+    post:
+      operationId: authSignOut
+      summary: Sign out
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthAccepted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      security:
+      - UserBearer: []
+  /v1/auth/me:
+    get:
+      operationId: authMe
+      summary: Me
+      responses:
+        '200':
+          description: No-store JSON response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUser'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      security:
+      - UserBearer: []
   /healthz:
     get:
       operationId: health
@@ -162,7 +495,7 @@ paths:
       operationId: createTrip
       summary: Create a private planned trip
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -247,7 +580,7 @@ paths:
       operationId: joinTrip
       summary: Join a planned or active trip with an invite
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -313,7 +646,7 @@ paths:
       operationId: getTrip
       summary: Get a trip as an active member
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -371,7 +704,7 @@ paths:
       operationId: listTripMembers
       summary: List active members, bounded to 100
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -425,7 +758,7 @@ paths:
       operationId: createInvite
       summary: Owner creates a single-disclosure invitation
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -499,7 +832,7 @@ paths:
       operationId: revokeInvite
       summary: Owner revokes an invite; repeat is safe
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -557,7 +890,7 @@ paths:
       operationId: startTrip
       summary: Owner starts a planned trip
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -611,7 +944,7 @@ paths:
       operationId: leaveTrip
       summary: Member leaves; owner must end or cancel
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -665,7 +998,7 @@ paths:
       operationId: endTrip
       summary: Owner completes an active trip
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -719,7 +1052,7 @@ paths:
       operationId: cancelTrip
       summary: Owner cancels a planned or active trip
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       description: 'Responses use Cache-Control: no-store. Maximum JSON body is 4096 bytes. Non-members receive
         404; mutations derive identity from the bearer. Lifecycle retries to the current target state are safe.
         Terminal trips retain member read access but cannot start, invite or join.'
@@ -773,7 +1106,7 @@ paths:
       operationId: setTripSharing
       summary: Explicitly enable or disable own live sharing
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       parameters:
       - &id004
         in: path
@@ -854,7 +1187,7 @@ paths:
         with an older usable invite. Existing reads/streams are revoked and positions are removed. Ordinary leave
         allows rejoining with a usable invite, with sharing off.
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       parameters:
       - *id004
       - in: path
@@ -922,7 +1255,7 @@ paths:
         bytes by default; configure a 64 KiB client read limit for bounded snapshots. Protocol-level handshake failures
         may use the WebSocket library plain HTTP error response.'
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       parameters:
       - *id004
       responses:
@@ -975,7 +1308,7 @@ paths:
       operationId: uploadDerivedTelemetry
       summary: Upload explicitly selected derived estimates
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       parameters:
       - name: trip
         in: path
@@ -1036,7 +1369,7 @@ paths:
       operationId: getPersonalTripSummaries
       summary: Read only your own trip telemetry summaries
       security:
-      - DevelopmentBearer: []
+      - UserBearer: []
       parameters:
       - name: trip
         in: path
@@ -1091,7 +1424,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 components:
+  responses:
+    AuthError:
+      description: Authentication refused, limited or unavailable; provider details are omitted. Rate limiting returns
+        Retry-After.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
+    AuthConfig:
+      type: object
+      required:
+      - available
+      - email_registration
+      properties:
+        available:
+          type: boolean
+        email_registration:
+          type: boolean
+    AuthUser:
+      type: object
+      required:
+      - id
+      - display_name
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          maxLength: 80
+    AuthSession:
+      type: object
+      required:
+      - access_token
+      - refresh_token
+      - expires_at
+      - user
+      properties:
+        access_token:
+          type: string
+          maxLength: 4090
+        refresh_token:
+          type: string
+          maxLength: 4096
+        expires_at:
+          type: integer
+          description: UTC Unix seconds
+        user:
+          $ref: '#/components/schemas/AuthUser'
+    AuthAccepted:
+      type: object
+      required:
+      - status
+      properties:
+        status:
+          const: accepted
     TelemetrySummary:
       type: object
       additionalProperties: false
@@ -1518,9 +1916,8 @@ components:
         status:
           const: removed
   securitySchemes:
-    DevelopmentBearer:
+    UserBearer:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: EdDSA only; project-drive-local issuer, project-drive-api audience, UUID subject, name, iat and
-        exp. Offline local/test issuer only.
+      description: Supabase authenticated user JWT, confirmed email, expected issuer/audience/role, UUID subject/session, issued-at and expiry; active provider session checked. Explicit local/test deployments may instead use offline EdDSA development credentials. The two modes are mutually exclusive.

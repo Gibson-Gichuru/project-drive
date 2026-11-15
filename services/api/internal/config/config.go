@@ -17,6 +17,9 @@ type Config struct {
 	NavigationURL    string
 	PlaceIndexPath   string
 	DevAuthPublicKey string
+	SupabaseURL      string
+	SupabaseIssuer   string
+	AuthEmailEnabled bool
 	Tracking         tracking.Limits
 }
 
@@ -29,6 +32,9 @@ func Load() (Config, error) {
 		NavigationURL:    os.Getenv("NAVIGATION_URL"),
 		PlaceIndexPath:   os.Getenv("PLACE_INDEX_PATH"),
 		DevAuthPublicKey: os.Getenv("DEV_AUTH_PUBLIC_KEY"),
+		SupabaseURL:      os.Getenv("SUPABASE_AUTH_URL"),
+		SupabaseIssuer:   os.Getenv("SUPABASE_AUTH_ISSUER"),
+		AuthEmailEnabled: os.Getenv("AUTH_EMAIL_ENABLED") == "true",
 	}
 	var err error
 	cfg.Tracking, err = tracking.LimitsFromEnv(os.Getenv)
@@ -40,6 +46,24 @@ func Load() (Config, error) {
 		if _, err := identity.PublicKey(os.Getenv("APP_ENV"), cfg.DevAuthPublicKey); err != nil {
 			return Config{}, err
 		}
+	}
+	if cfg.SupabaseURL != "" || cfg.SupabaseIssuer != "" {
+		if cfg.DevAuthPublicKey != "" {
+			return Config{}, errors.New("development and production identity modes are mutually exclusive")
+		}
+		if _, err := identity.NewSupabase(cfg.SupabaseURL, cfg.SupabaseIssuer); err != nil {
+			return Config{}, err
+		}
+		issuer, _ := url.Parse(cfg.SupabaseIssuer)
+		if (cfg.Environment == "homelab" || cfg.Environment == "production") && issuer.Scheme != "https" {
+			return Config{}, errors.New("public authentication issuer must use HTTPS")
+		}
+	}
+	if os.Getenv("AUTH_EMAIL_ENABLED") != "" && os.Getenv("AUTH_EMAIL_ENABLED") != "true" && os.Getenv("AUTH_EMAIL_ENABLED") != "false" {
+		return Config{}, errors.New("AUTH_EMAIL_ENABLED must be true or false")
+	}
+	if cfg.AuthEmailEnabled && cfg.SupabaseURL == "" {
+		return Config{}, errors.New("email authentication requires Supabase")
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")

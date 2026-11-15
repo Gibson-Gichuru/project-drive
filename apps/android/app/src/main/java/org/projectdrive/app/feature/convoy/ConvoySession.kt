@@ -19,7 +19,7 @@ data class ConvoyState(
     val signedIn: Boolean = false, val userId: String = "", val trip: Trip? = null,
     val members: List<Member> = emptyList(), val participants: List<Participant> = emptyList(),
     val sharing: Boolean = false, val connected: Boolean = false, val busy: Boolean = false,
-    val pendingStop: Boolean = false, val message: String = if (org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to use convoys" else "Convoy sign-in is not yet available",
+    val pendingStop: Boolean = false, val message: String = if (org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) "Import a local test session to use convoys" else "Sign in to use private convoys",
     val invitation: Invitation? = null, val now: Long = 0, val snapshotGeneration: Long = 0,
 )
 
@@ -27,6 +27,7 @@ data class ConvoyState(
 class ConvoySession @Inject constructor(
     private val api: TripRepository, private val vault: SessionVault, private val dao: ConvoyDao,
     private val connection: SocketTrackingConnection,
+    private val auth:org.projectdrive.app.core.auth.AuthRepository,
 ) {
     private val sessionScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     private val mutable = MutableStateFlow(ConvoyState())
@@ -55,6 +56,7 @@ class ConvoySession @Inject constructor(
             }
             while (true) {
                 delay(1_000)
+                if(!org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) syncAccount()
                 val now = SystemClock.elapsedRealtime()
                 mutable.update { it.copy(now = now, participants = decoder.visible(now)) }
                 if (desired && (session?.expiresAtMillis ?: 0) <= System.currentTimeMillis()) stopSharing("Session expired · import a new session")
@@ -74,7 +76,23 @@ class ConvoySession @Inject constructor(
         mutable.value = ConvoyState(signedIn = true, userId = next.userId, busy = true, message = "Sharing off · local test session")
         revokePending()
     }
-    private fun current() = session?.takeIf { it.expiresAtMillis > System.currentTimeMillis() } ?: error("Import a fresh local test session")
+    private suspend fun current():Session {
+        if(!org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)return auth.currentSession().also{session=it}
+        return session?.takeIf { it.expiresAtMillis > System.currentTimeMillis() } ?: error("Import a fresh local test session")
+    }
+    private suspend fun syncAccount() {
+        val id=auth.state.value.userId
+        if(id==session?.userId)return
+        stopSharing("Sharing off · account changed").join()
+        mutex.withLock {
+            session=null;decoder.clear();createKey=null;createBody=null;inviteKey=null
+            mutable.value=ConvoyState(message="Sharing off")
+            if(id!=null)try {
+                val next=current();mutable.value=ConvoyState(signedIn=true,userId=next.userId,message="Sharing off")
+                revokePending();dao.selected(next.userId)?.let{loadTrip(it.tripId)}
+            }catch(e:CancellationException){throw e}catch(_:Exception){mutable.update{it.copy(message="Sign in or reconnect to load your convoy")}}
+        }
+    }
     fun create(name: String, origin: Coordinate, destination: Coordinate) = action {
         require(name.isNotBlank() && name.length <= 120)
         require(mutable.value.trip == null) { "Close the current trip first" }
@@ -170,13 +188,15 @@ class ConvoySession @Inject constructor(
             lastSent = now; lastFix = fix.elapsedRealtimeMillis
         }
     }
-    private suspend fun stream(user: Session, trip: String, epoch: Long) {
+    private suspend fun stream(initialUser: Session, trip: String, epoch: Long) {
         var attempt = 0
         while (foreground && desired && generation == epoch) {
             decoder.clear(); mutable.update { it.copy(connected = false, participants = emptyList(), message = "Sharing on · reconnecting") }
             try {
+                val user=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)initialUser else current()
                 coroutineScope {
                     val deadline = launch { delay(10_000); if (!decoder.ready) connection.stop() }
+                    val renewal=launch {delay((user.expiresAtMillis-System.currentTimeMillis()-45_000).coerceAtLeast(1_000));connection.stop()}
                     try {
                         connection.events(user, trip).collect { text ->
                             if (!desired || generation != epoch || !foreground) return@collect
@@ -184,7 +204,7 @@ class ConvoySession @Inject constructor(
                             if (decoder.ready) { deadline.cancel(); attempt = 0 }
                             mutable.update { it.copy(connected = decoder.ready, snapshotGeneration = it.snapshotGeneration + if (kind == "trip.snapshot") 1 else 0, participants = decoder.visible(SystemClock.elapsedRealtime()), message = "Sharing on · connected · journey notification active") }
                         }
-                    } finally { deadline.cancel() }
+                    } finally { deadline.cancel();renewal.cancel() }
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -214,7 +234,11 @@ class ConvoySession @Inject constructor(
         if (trip.status != "active" && desired) stopSharing("Sharing off · trip is ${trip.status}")
     }
     private suspend fun revokePending(): Boolean {
-        val user = session ?: return true
+        val previous=session?:return true
+        val user=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)previous else try {
+            auth.currentSession().takeIf{it.userId==previous.userId}?:return false
+        }catch(e:CancellationException){throw e}catch(_:Exception){return false}
+        session=user
         val pending = dao.pending(user.userId)
         for (stop in pending) {
             try { api.request(user, "PUT", "/v1/trips/${stop.tripId}/sharing", JSONObject().put("enabled", false)); dao.forget(stop) }
@@ -230,7 +254,7 @@ class ConvoySession @Inject constructor(
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 mutable.update { it.copy(message = when {
-                    e is ApiFailure && e.status == 401 -> "Session expired or unauthorized · import a new session"
+                    e is ApiFailure && e.status == 401 -> "Session expired or unauthorized · sign in again"
                     e is ApiFailure && e.status == 404 -> "Trip unavailable · membership may have been removed"
                     e is ApiFailure -> "Trip request refused (${e.code}) · refresh before retrying"
                     else -> "Request unavailable · check session, connection and input; retry safely"

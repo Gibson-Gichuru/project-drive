@@ -18,8 +18,9 @@ type TripService interface {
 	Execute(context.Context, identity.User, trips.Command) (any, error)
 }
 type TripOptions struct {
-	Service   TripService
-	PublicKey ed25519.PublicKey
+	Service       TripService
+	PublicKey     ed25519.PublicKey
+	Authenticator identity.Authenticator
 }
 
 func registerTrips(mux *http.ServeMux, options TripOptions) {
@@ -33,14 +34,13 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 	} {
 		mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-store")
-			auth := r.Header.Get("Authorization")
-			if options.Service == nil || len(options.PublicKey) != ed25519.PublicKeySize || !strings.HasPrefix(auth, "Bearer ") || len(auth) > 4096 {
+			if options.Service == nil {
 				unauthorized(w, r)
 				return
 			}
-			user, err := identity.Verify(options.PublicKey, strings.TrimPrefix(auth, "Bearer "))
+			session, err := options.authenticate(r)
 			if err != nil {
-				unauthorized(w, r)
+				authenticationError(w, r, err)
 				return
 			}
 			c := trips.Command{Action: action, TripID: r.PathValue("trip"), InviteID: r.PathValue("invite"), MemberID: r.PathValue("member")}
@@ -124,7 +124,7 @@ func registerTrips(mux *http.ServeMux, options TripOptions) {
 			c.MaxUses = body.MaxUses
 			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 			defer cancel()
-			result, err := options.Service.Execute(ctx, user, c)
+			result, err := options.Service.Execute(ctx, session.User, c)
 			if err != nil {
 				var domain trips.Error
 				if errors.As(err, &domain) {

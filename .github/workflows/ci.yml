@@ -29,5 +29,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
       - name: Verify project
         run: make ci
+      - name: Verify real Supabase authentication and captured email
+        run: python3 scripts/auth-acceptance.py
       - name: Build API image
         run: docker build -t project-drive-api:ci services/api

@@ -51,9 +51,12 @@ private enum class DriveTab {
 fun DriveScreen(
     state:NavigationState, model:NavigationViewModel, group:ConvoyState, convoy:ConvoyViewModel,
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
+    account:AuthViewModel,
     useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, startGuidance:()->Unit, startSharing:()->Unit, importSession:()->Unit,
 ) {
     val carConnection by telemetry.carConnection.collectAsState()
+    val accountState by account.account.collectAsState()
+    val accountUi by account.ui.collectAsState()
     var focusedRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(state.focusRequest) {
         if(state.focusRequest>0 && focusedRequest!=state.focusRequest) {
@@ -74,7 +77,10 @@ fun DriveScreen(
         stopSharing={convoy.stopSharing()},
         mapContent={ modifier -> AndroidView(factory={renderer.view},modifier=modifier) },
         navigationContent={ backToMap -> NavigationPanel(state,model,recording.recording,useLocation,stopLocation,startGuidance,backToMap) },
-        convoyContent={ ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession,startSharing) },
+        convoyContent={
+            if(!org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) AccountContent(accountState,accountUi,account::mode,account::submit,account::signOut,account::retry)
+            ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession,startSharing)
+        },
         telemetryContent={ TelemetryPanel(recording,telemetry,group.trip,state.playback,startRecording,finishRecording,carConnection) },
     )
 }
