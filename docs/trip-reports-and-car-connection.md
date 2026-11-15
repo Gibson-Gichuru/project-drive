@@ -156,3 +156,9 @@ wrapper-owned logs, retaining APKs, reports and synthetic screenshot artifacts.
 The full build runs used `:app:assembleDebug`, `:app:assembleDebugAndroidTest`,
 `:app:testDebugUnitTest` and `:app:lintDebug`; the APK-only run omitted tests/lint.
 No raw Gradle logs, personal phone data or debug database were committed.
+
+### Delivery — 15 November 2026
+
+Source `f35717c916e6a62f6ee651c0756250a44eaae2b1` passed [CI](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43716115129) and [image/GitOps publication](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43716782639). The live API uses that exact image; Flux reports Ready at `homelab-deploy@sha1:a07551728aeedc806c20a746e95613b06cd71d1d`. API, router and tile Deployments each have one ready replica. Database and map PVCs remain Bound at 5 GiB and 10 GiB. The five public Kenya route checks, vector tile and Latin glyph check passed after promotion.
+
+The owner scheduled the combined physical session for **25 November 2026**. The all-day calendar reminder was saved; the two-real-phone, prolonged background, battery and actual head-unit checks remain open.
