@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-drive-auth
+  labels:
+    app.kubernetes.io/part-of: project-drive
+spec:
+  selector:
+    app.kubernetes.io/name: project-drive-auth
+  ports:
+  - name: http
+    port: 9999
+    targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-drive-auth
+  labels:
+    app.kubernetes.io/part-of: project-drive
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: project-drive-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: project-drive-auth
+        app.kubernetes.io/part-of: project-drive
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: auth
+        image: supabase/gotrue:v2.197.0@sha256:1736a63078f5922b198c4cbe50f80ab9a2d3b54fe8b7b6cfb2e9dc5dbbc12c6b
+        ports:
+        - name: http
+          containerPort: 9999
+        env:
+        - name: GOTRUE_API_HOST
+          value: 0.0.0.0
+        - name: PORT
+          value: '9999'
+        - name: API_EXTERNAL_URL
+          value: https://drive-api.ripples.boo/v1/auth
+        - name: GOTRUE_SITE_URL
+          value: https://drive-api.ripples.boo
+        - name: GOTRUE_JWT_ISSUER
+          value: https://drive-api.ripples.boo/v1/auth
+        - name: GOTRUE_JWT_EXP
+          value: '900'
+        - name: GOTRUE_JWT_AUD
+          value: authenticated
+        - name: GOTRUE_JWT_DEFAULT_GROUP_NAME
+          value: authenticated
+        - name: GOTRUE_JWT_ADMIN_ROLES
+          value: service_role
+        - name: GOTRUE_JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: project-drive-auth
+              key: JWT_SECRET
+        - name: GOTRUE_DB_DRIVER
+          value: postgres
+        - name: GOTRUE_DB_NAMESPACE
+          value: auth
+        - name: GOTRUE_DB_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: project-drive-auth
+              key: DATABASE_URL
+        - name: GOTRUE_DISABLE_SIGNUP
+          value: 'true'
+        - name: GOTRUE_EXTERNAL_EMAIL_ENABLED
+          value: 'true'
+        - name: GOTRUE_EXTERNAL_PHONE_ENABLED
+          value: 'false'
+        - name: GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED
+          value: 'false'
+        - name: GOTRUE_MAILER_AUTOCONFIRM
+          value: 'false'
+        - name: GOTRUE_MAILER_OTP_EXP
+          value: '900'
+        - name: GOTRUE_MAILER_OTP_LENGTH
+          value: '6'
+        - name: GOTRUE_PASSWORD_MIN_LENGTH
+          value: '12'
+        - name: GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED
+          value: 'true'
+        - name: GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL
+          value: '10'
+        - name: GOTRUE_SMTP_HOST
+          value: project-drive-smtp
+        - name: GOTRUE_SMTP_PORT
+          value: '587'
+        - name: GOTRUE_SMTP_ADMIN_EMAIL
+          value: noreply@outset-mail.ripples.boo
+        - name: GOTRUE_SMTP_SENDER_NAME
+          value: Outset
+        - name: GOTRUE_SMTP_MAX_FREQUENCY
+          value: 60s
+        - name: GOTRUE_RATE_LIMIT_EMAIL_SENT
+          value: '20'
+        - name: GOTRUE_MAILER_TEMPLATES_CONFIRMATION
+          value: http://project-drive-api:8080/v1/auth/templates/confirmation
+        - name: GOTRUE_MAILER_TEMPLATES_RECOVERY
+          value: http://project-drive-api:8080/v1/auth/templates/recovery
+        - name: GOTRUE_LOG_LEVEL
+          value: error
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL

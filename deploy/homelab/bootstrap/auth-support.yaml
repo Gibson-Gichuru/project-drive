@@ -1,0 +1,52 @@
+# Operator-owned private policies and durable mail queue. Reconciler RBAC is unchanged.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: project-drive-auth-private
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: project-drive-auth
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: project-drive-api
+    ports:
+    - protocol: TCP
+      port: 9999
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: project-drive-mail-queue
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: project-drive-smtp-private
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: project-drive-smtp
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: project-drive-auth
+    ports:
+    - protocol: TCP
+      port: 587

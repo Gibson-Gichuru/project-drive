@@ -76,6 +76,9 @@ spec:
               value: :8080
             - name: APP_ENV
               value: homelab
+            - {name: SUPABASE_AUTH_URL, value: 'http://project-drive-auth:9999'}
+            - {name: SUPABASE_AUTH_ISSUER, value: 'https://drive-api.ripples.boo/v1/auth'}
+            - {name: AUTH_EMAIL_ENABLED, value: 'false'}
             - name: MAP_TILE_URL
               value: http://project-drive-tiles:3000
             - name: NAVIGATION_URL
