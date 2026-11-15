@@ -128,3 +128,11 @@ Managed Google Gradle workflow `38bb5853e24e2c03567999063dc6e386` questions:
 6. “Do the final Google OAuth APKs, 44 Android JVM checks and lint pass with strict dependency verification and cold-start callback handling?” Both APKs, all 44 JVM checks and lint passed with strict verification, without warnings.
 
 `go vet ./...` and `go test -race ./...` passed for all Go packages; integration-only suites remain the CI disposable-PostGIS gate.
+
+The managed Google workflow was finished; `finish` removed only wrapper-owned logs.
+The exact native callback is saved as both Supabase Site URL and the sole redirect allowlist entry after owner approval.
+
+A final notice-only managed workflow `2349cb0e43db28bab23703fba483b24b` asked:
+“Does the final debug APK package the Supabase Kotlin MIT notice and updated authentication dependency notices?”
+`:app:assembleDebug` passed without warnings; direct APK inspection confirmed exact bundled notice bytes.
+The unused hosted Email provider is disabled. A verified HTTPS `/settings` check returned 200, email false and Google false; Google credentials are still pending handoff.

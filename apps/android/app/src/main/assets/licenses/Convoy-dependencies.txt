@@ -6,7 +6,7 @@ https://github.com/google/dagger
 AndroidX Room 2.8.5 — Copyright The Android Open Source Project — Apache License 2.0
 https://android.googlesource.com/platform/frameworks/support/
 
-OkHttp 4.12.0 — Copyright Square, Inc. — Apache License 2.0
+OkHttp 5.5.0 (resolved through the pinned Ktor client) — Copyright Square, Inc. — Apache License 2.0
 https://github.com/square/okhttp
 
 Okio — Copyright Square, Inc. — Apache License 2.0

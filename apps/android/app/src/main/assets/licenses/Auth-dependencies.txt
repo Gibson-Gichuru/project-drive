@@ -1,0 +1,16 @@
+Outset authentication dependencies
+
+Supabase Kotlin Auth 3.9.0 — Copyright (c) 2025 Jan Tennert — MIT
+https://github.com/supabase/supabase-kt/tree/3.9.0
+The complete notice accompanies this file as Supabase-Kotlin-MIT.txt.
+
+Ktor 3.6.0 — Copyright JetBrains s.r.o. and contributors — Apache License 2.0
+https://github.com/ktorio/ktor
+
+Kotlin 2.4.21 and kotlinx.coroutines 1.11.0 — Copyright JetBrains s.r.o.
+and contributors — Apache License 2.0
+https://github.com/JetBrains/kotlin
+https://github.com/Kotlin/kotlinx.coroutines
+
+The Apache License text accompanies this file as Apache-2.0.txt.
+Google is an external account provider, not a bundled Google identity SDK.
