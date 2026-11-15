@@ -12,10 +12,34 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.projectdrive.app.core.database.*
 import org.projectdrive.app.core.telemetry.*
+import org.projectdrive.app.core.location.LocationFix
+import org.projectdrive.app.core.navigation.Coordinate
+import org.json.JSONArray
 import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class TelemetrySafetyTest {
+    @Test fun briefCandidateEventsSurviveLocalSaveAndReadWithoutRawSamples()=runBlocking {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        // Dedicated in-memory Room instance: never alter the owner's recordings.
+        val db=Room.inMemoryDatabaseBuilder(context,ConvoyDatabase::class.java).build()
+        try {
+            val now=System.currentTimeMillis();val processor=TelemetryProcessor(1000,now-3000)
+            for((t,speed) in listOf(1000L to 10f,1999L to 14f,2998L to 9f)) {
+                processor.onFix(LocationFix(Coordinate(-1.2864,36.82),5f,t,speed,0.5f),t)
+            }
+            val result=processor.result(3998)
+            val store=RoomTelemetryStore(db)
+            store.save(LocalRecording(UUID.randomUUID().toString(),result.summary.toJSON().toString(),result.eventsJSON().toString(),false,now+LOCAL_RETENTION_MILLIS,now+UPLOAD_WINDOW_MILLIS))
+            val saved=store.list().single();val summary=summaryFromJSON(JSONObject(saved.summaryJSON))
+            assertEquals(1,summary.acceleration);assertEquals(1,summary.braking)
+            val events=JSONArray(saved.eventsJSON);assertEquals(2,events.length())
+            assertEquals("acceleration_candidate",events.getJSONObject(0).getString("type"))
+            assertEquals("braking_candidate",events.getJSONObject(1).getString("type"))
+            assertEquals("gps_delta",events.getJSONObject(1).getString("source"))
+            assertFalse(saved.summaryJSON.contains("latitude"));assertFalse(saved.eventsJSON.contains("longitude"))
+        } finally { db.close() }
+    }
     @Test fun roomMigrationPreservesConsentJournalAndSelectedTrip()=runBlocking {
         val instrumentation=InstrumentationRegistry.getInstrumentation();val context=instrumentation.targetContext
         val name="telemetry-migration-test.db";context.deleteDatabase(name)

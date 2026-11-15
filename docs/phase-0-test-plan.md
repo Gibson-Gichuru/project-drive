@@ -50,7 +50,8 @@ See [M4 report](milestones/M4.md) for commands, limits and release evidence. Do 
 - [x] Native Room migration/recovery/expiry/binding and sensor start/stop on phone/emulator.
 - [x] Emulator synthetic recording/upload, rotation interruption and real process kill recovery.
 - [x] Public TLS routing, map/font downloads and protected REST/WebSocket denial on physical phone and emulator with Project Drive reverses removed.
-- [ ] Real moving-phone M5 summary; see [14 November field checklist](device-tests/2026-11-14-field.md).
+- [x] Owner's 14 November drive produced local moving-phone summaries with GPS/speed and motion sensor counts; read-only phone inspection confirmed retention on 15 November.
+- [ ] Repeat M5 event detection field check after the [journal defect correction](device-tests/2026-11-15-journal-events.md). Original recordings contain zero candidates; sensitivity and false positives remain unverified.
 
 Use `make ci`, the loopback-only `scripts/android-telemetry-check.py`, and the
 opt-in `PublicEndpointTest` described in [M5](milestones/M5.md). The public build

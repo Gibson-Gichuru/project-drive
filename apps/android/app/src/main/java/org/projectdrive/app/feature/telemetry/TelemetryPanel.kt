@@ -68,9 +68,10 @@ private fun SummaryCard(s: TelemetrySummary) {
         JourneyMetric(String.format(Locale.ROOT,"%.1f km/h",s.maxSpeedMps*3.6),"Max estimated speed",Modifier.weight(1f))
     }else Text("Speed unavailable · no reliable speed estimates",style=MaterialTheme.typography.bodyMedium)
     Text("Candidate signals · uncalibrated",style=MaterialTheme.typography.labelLarge)
+    Text("Counts use reliable GPS speed changes. Limited GPS quality can leave events undetected.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-        JourneyMetric(s.acceleration.toString(),"Acceleration",Modifier.weight(1f))
-        JourneyMetric(s.braking.toString(),"Braking",Modifier.weight(1f))
+        JourneyMetric(s.acceleration.toString(),"Rapid acceleration",Modifier.weight(1f))
+        JourneyMetric(s.braking.toString(),"Hard braking",Modifier.weight(1f))
         JourneyMetric(s.lateral.toString(),"Lateral",Modifier.weight(1f))
     }
     TextButton(onClick={quality=!quality},contentPadding=PaddingValues(0.dp)) { Text(if(quality) "Hide recording quality" else "Recording quality");Spacer(Modifier.width(6.dp));DriveIcon(DriveSymbol.Chevron,modifier=Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary) }

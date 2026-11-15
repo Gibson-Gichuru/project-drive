@@ -29,6 +29,8 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
     private val events = mutableListOf<CandidateEvent>()
     private val counts = mutableMapOf<String, Int>()
     private val streaks = mutableMapOf<String, Int>()
+    private data class SpeedEvidence(val seconds: Double, val changeMps: Double, val initialAccuracyMps: Float)
+    private val speedEvidence = mutableMapOf<String, SpeedEvidence>()
     private val cooldown = mutableMapOf<String, Long>()
     private var gps = 0; private var rejected = 0; private var imu = 0; private var rotation = 0
     private var accuracyTotal = 0.0
@@ -47,32 +49,50 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
     fun onFix(fix: LocationFix, now: Long) {
         if (fix.elapsedRealtimeMillis - startedElapsed !in 0..MAX_RECORDING_MILLIS || fix.elapsedRealtimeMillis <= lastSeenFix) return
         lastSeenFix = fix.elapsedRealtimeMillis
-        if (!fix.isFresh(now) || !fix.accuracyMeters.isFinite() || fix.accuracyMeters <= 0 || fix.accuracyMeters > 50) { rejected++; lastFix = null; streaks.clear(); return }
+        if (!fix.isFresh(now) || !fix.accuracyMeters.isFinite() || fix.accuracyMeters <= 0 || fix.accuracyMeters > 50) { rejected++; lastFix = null; resetEvidence(); return }
         gps++; accuracyTotal += fix.accuracyMeters
         if (validSpeed(fix, 3.0)) { val speed = checkNotNull(fix.speedMps).toDouble(); speedCount++; speedTotal += speed; maxSpeed = max(maxSpeed, speed) }
         val previous = lastFix; lastFix = fix
         if (previous == null) return
         val dt = (fix.elapsedRealtimeMillis - previous.elapsedRealtimeMillis) / 1000.0
-        if (dt !in 0.5..5.0) { streaks.clear(); return }
+        if (dt !in 0.5..5.0) { resetEvidence(); return }
         val metres = metresBetween(previous, fix)
-        if (metres / dt > 100) { lastFix = null; streaks.clear(); rejected++; return }
+        if (metres / dt > 100) { lastFix = null; resetEvidence(); rejected++; return }
         covered += dt
         val uncertainty = (previous.accuracyMeters + fix.accuracyMeters).toDouble()
         if (metres > max(3.0, uncertainty / 2) && ((fix.speedMps ?: 0f) > 1 || metres > uncertainty)) distance += metres
-        if (dt !in 1.0..3.0 || previous.accuracyMeters > 25 || fix.accuracyMeters > 25 || !validSpeed(previous,2.0) || !validSpeed(fix,2.0)) { streaks.clear(); return }
+        if (dt !in 0.5..3.0 || previous.accuracyMeters > 25 || fix.accuracyMeters > 25 || !validSpeed(previous,2.0) || !validSpeed(fix,2.0)) { resetEvidence(); return }
         val a = (checkNotNull(fix.speedMps) - checkNotNull(previous.speedMps)) / dt
-        candidate("acceleration_candidate", a.takeIf { it in 3.0..30.0 }, fix)
-        candidate("braking_candidate", (-a).takeIf { it in 3.5..30.0 }, fix)
+        speedCandidate("acceleration_candidate", a.takeIf { it in 3.0..30.0 }, previous, fix, dt)
+        speedCandidate("braking_candidate", (-a).takeIf { it in 3.5..30.0 }, previous, fix, dt)
         val lateral = if (validBearing(previous) && validBearing(fix) && checkNotNull(fix.speedMps) >= 7 && checkNotNull(previous.speedMps) >= 7) {
             val change = abs(((checkNotNull(fix.bearingDegrees) - checkNotNull(previous.bearingDegrees) + 540) % 360) - 180)
             (checkNotNull(fix.speedMps) + checkNotNull(previous.speedMps)) / 2 * Math.toRadians(change.toDouble()) / dt
         } else 0.0
         candidate("lateral_candidate", lateral.takeIf { it in 4.0..30.0 }, fix)
     }
+    /** Confirm elapsed evidence rather than a callback count: a brief brake may
+     * occupy just one nominal 1 s interval, and real timestamps need not be exact.
+     * Endpoint speed uncertainty is a noise gate, not a calibrated confidence. */
+    private fun speedCandidate(type: String, magnitude: Double?, previous: LocationFix, fix: LocationFix, dt: Double) {
+        if (magnitude == null) { speedEvidence.remove(type); return }
+        val prior = speedEvidence[type]
+        val evidence = SpeedEvidence((prior?.seconds ?: 0.0) + dt,
+            (prior?.changeMps ?: 0.0) + magnitude * dt,
+            prior?.initialAccuracyMps ?: checkNotNull(previous.speedAccuracyMps))
+        speedEvidence[type] = evidence
+        if (evidence.seconds < 0.75 || evidence.changeMps <= evidence.initialAccuracyMps + checkNotNull(fix.speedAccuracyMps)) return
+        if (emitCandidate(type, evidence.changeMps / evidence.seconds, fix)) speedEvidence.remove(type)
+    }
+    private fun resetEvidence() { streaks.clear(); speedEvidence.clear() }
     private fun candidate(type: String, magnitude: Double?, fix: LocationFix) {
         if (magnitude == null) { streaks[type] = 0; return }
         streaks[type] = (streaks[type] ?: 0) + 1
-        if (checkNotNull(streaks[type]) < 2 || fix.elapsedRealtimeMillis - (cooldown[type] ?: -10_000_000) < 5000) return
+        if (checkNotNull(streaks[type]) < 2) return
+        emitCandidate(type, magnitude, fix)
+    }
+    private fun emitCandidate(type: String, magnitude: Double, fix: LocationFix): Boolean {
+        if (fix.elapsedRealtimeMillis - (cooldown[type] ?: -10_000_000) < 5000) return false
         cooldown[type] = fix.elapsedRealtimeMillis
         counts[type] = (counts[type] ?: 0) + 1
         if (events.size < MAX_LOCAL_EVENTS) {
@@ -80,6 +100,7 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
             val orientation = if (rawMotion.any { it.kind == "rotation" && it.accuracy >= 2 && fix.elapsedRealtimeMillis - it.elapsedMillis in 0..500 }) "available" else "unavailable"
             events += CandidateEvent(type, magnitude, 0.35, fix.accuracyMeters.toDouble(), elapsed, startedUTC + elapsed, orientation)
         }
+        return true
     }
     fun result(now: Long, interrupted: Boolean = false): TelemetryResult {
         val elapsed = (now - startedElapsed).coerceIn(0, MAX_RECORDING_MILLIS)
@@ -92,7 +113,7 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
     }
     fun expireRaw(now: Long) {
         while (rawMotion.isNotEmpty() && rawMotion.first().elapsedMillis < now - 2000) rawMotion.removeFirst()
-        if (lastFix?.let { now - it.elapsedRealtimeMillis > 5000 } == true) { lastFix = null; streaks.clear() }
+        if (lastFix?.let { now - it.elapsedRealtimeMillis > 5000 } == true) { lastFix = null; resetEvidence() }
     }
     fun rawBufferSize() = rawMotion.size
     private fun validSpeed(f: LocationFix, accuracy: Double) = f.speedMps?.let { it.isFinite() && it in 0f..100f } == true && f.speedAccuracyMps?.let { it.isFinite() && it > 0 && it <= accuracy } == true

@@ -27,16 +27,32 @@ These simple estimates can undercount slow travel or overcount residual GPS nois
 they are not map-matched odometer measurements or duration-weighted speed.
 
 Candidate events use successive GPS speed/course deltas, **not calibrated phone
-acceleration axes**. Require 1–3 second intervals, both position accuracies at
+acceleration axes**. Require 0.5–3 second intervals, both position accuracies at
 most 25 m, and speed accuracy at most 2 m/s. Acceleration/braking candidates start
 at 3/3.5 m/s². Lateral candidates use speed multiplied by course-change rate,
 require speeds at least 7 m/s and bearing accuracy at most 10 degrees, and start
-at 4 m/s². Require two consecutive qualifying samples and a five-second cooldown
-per type. Reject magnitudes above 30 m/s². Assign confidence 0.35 and explicitly
+at 4 m/s². Longitudinal candidates require at least 0.75 seconds of consecutive
+qualifying evidence, with total speed change greater than the sum of the reported
+speed uncertainties at the window endpoints. Persist the window's mean change
+rate. This noise gate is a prototype heuristic, not a statistical guarantee or
+validated calibration. Lateral candidates still require two consecutive qualifying
+intervals. Keep a five-second cooldown per type and reject magnitudes above
+30 m/s². Assign confidence 0.35 and explicitly
 label all results uncalibrated candidates; do not score a driver. IMU streams
 provide sensor-presence/quality context and a short-lived rotation-availability
 hint, not gravity compensation or fused event classification. Calibration,
 coordinate-frame alignment, filtering and threshold validation remain Phase 3.
+
+Revision 2026-11-15: owner field recordings confirmed sensor/GPS collection but
+zero candidate events. Deterministic regressions exposed the strict 1 s lower
+bound and the two-interval longitudinal confirmation requirement: near-1 s
+timestamps were rejected, and a brief strong brake followed by steady speed was
+missed. Duration-based confirmation fixes those cases without reducing the
+acceleration/braking thresholds. Historical summaries cannot be recomputed because
+raw samples were deliberately not retained. A new physical journey is required
+to validate sensitivity and false positives; this does not close the M5 field gate.
+Android describes speed accuracy as an estimated uncertainty, not a guaranteed
+error bound: [Location API](https://developer.android.com/reference/android/location/Location#getSpeedAccuracyMetersPerSecond()).
 
 ## Bounds, persistence and upload
 
