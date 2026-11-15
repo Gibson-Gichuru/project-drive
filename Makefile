@@ -4,7 +4,7 @@ ANDROID_HOME ?= $(if $(ANDROID_SDK_ROOT),$(ANDROID_SDK_ROOT),$(HOME)/Android/Sdk
 export JAVA_HOME ANDROID_HOME
 COMPOSE := docker compose -f infra/compose.yaml --env-file .env
 
-.PHONY: setup doctor ci test api-test integration security android-build android-test android-device-build android-lint compose-config homelab-config up down logs migrate clean
+.PHONY: setup doctor ci test api-test integration latency security android-build android-test android-device-build android-lint compose-config homelab-config up down logs migrate clean
 
 setup:
 	@test -f .env || cp .env.example .env
@@ -33,6 +33,11 @@ integration: setup
 
 security:
 	cd services/api && go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+# Separate opt-in measurement: real PostGIS and two authenticated loopback peers.
+# integration also builds/migrates the DB; no public development auth is enabled.
+latency: integration
+	$(COMPOSE) run --rm -e RUN_TRACKING_LATENCY=1 trip-tests go test -race -count=1 -v ./internal/httpapi -run '^TestStreamLatencyIntegration$$'
 
 android-build:
 	cd apps/android && ./gradlew --no-daemon :app:assembleDebug

@@ -38,6 +38,13 @@ M4 software and local device validation have passed; GitHub CI and homelab deplo
 
 **M6 is in progress.** Owner-authorized background journeys and local field diagnostics are installed and deployed; automated/native checks passed. The Tigoni review verifies completed local capture and saved acceleration/braking candidates; the owner reports navigation worked with no wrong turns. Arrival, prolonged background/screen-off, two-device battery, convoy and remaining performance/operations checks are still open. See [M6 status](milestones/M6.md).
 
+**Field-test cadence — owner decision, 15 November:** continue software work while
+collecting outstanding physical acceptance into [one coordinated outing](consolidated-field-test.md).
+Do not require a new drive at every milestone. Field gates stay open until the
+shared evidence passes; retain existing valid checks. M6 desktop work now includes
+a repeatable two-peer/PostGIS server-write latency baseline and a privacy/operations
+review; see [the demo and validation runbook](m6-desktop-validation.md).
+
 Complete these in order. Each milestone produces a runnable increment and a short status report covering changed files, verification, blockers, and the next step.
 
 | Milestone | Work and deliverables | Acceptance gate / dependency |
@@ -74,4 +81,4 @@ Complete these in order. Each milestone produces a runnable increment and a shor
 
 ## Working cadence
 
-The owner explicitly requested starting M2 on 2026-11-13 before the M1 field gate closed. M2 is now implemented, verified and deployed; M3 is now complete after explicit authorization to proceed while the M1 journey is deferred. The owner authorized M5 implementation with physical testing deferred to 14 November 2026. M5 software, CI and homelab deployment passed on `8e152a1`; evidence is recorded in [M5](milestones/M5.md). M6 validation is next, with the deferred physical gates preserved. Preserve the remaining M1/M4 and M6 gates; M5 physical capture and longitudinal-event persistence now have evidence, without a calibrated accuracy claim. Complete the remaining M1 physical route/coverage validation before declaring Phase 0 complete. At each milestone review, compare evidence with its gate, record changed scope and decisions, and either close it or list the concrete blocker. Do not begin later milestones until the current gate passes. Revisit phase scope after M6 field results, and re-estimate work before making delivery-date commitments.
+The owner explicitly requested starting M2 on 2026-11-13 before the M1 field gate closed. M2 and M3 are complete. M5 software, CI and homelab deployment passed on `8e152a1`, with subsequent real-drive capture/event evidence in [M5](milestones/M5.md). M6 is in progress. On 15 November the owner authorized moving software milestones forward while consolidating field acceptance. This supersedes the earlier requirement to stop software progress at each deferred field gate. Preserve the remaining M1/M4/M6 checks and report them separately; do not declare Phase 0 complete without them. At each milestone report software verification, outstanding physical checks and the concrete next dependency. Revisit later-phase scope and estimates before expanding beyond authorized work.

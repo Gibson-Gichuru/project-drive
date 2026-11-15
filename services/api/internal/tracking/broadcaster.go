@@ -17,6 +17,7 @@ type Delivery struct {
 	ExpiresAt  time.Time
 	Snapshot   bool
 	Generation uint64
+	receivedAt time.Time // Monotonic process-local timing; never serialized.
 }
 type Subscription struct {
 	TripID, UserID string

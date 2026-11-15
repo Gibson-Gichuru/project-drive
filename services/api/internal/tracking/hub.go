@@ -33,6 +33,7 @@ type Hub struct {
 	cancel      context.CancelFunc
 	done        chan struct{}
 	closed      bool
+	latency     latencyStats
 }
 
 func New(auth Authorizer, limits Limits) (*Hub, error) {
@@ -229,6 +230,7 @@ func (h *Hub) Unsubscribe(s *Subscription) {
 	h.stop(s, "disconnected")
 }
 func (h *Hub) Publish(ctx context.Context, s *Subscription, raw []byte) error {
+	received := time.Now()
 	if err := h.lock(ctx); err != nil {
 		return err
 	}
@@ -271,7 +273,7 @@ func (h *Hub) Publish(ctx context.Context, s *Subscription, raw []byte) error {
 		h.stop(s, "tracking_capacity")
 		return err
 	}
-	h.broadcast(s.TripID, Delivery{Event: h.event(s.TripID, "participant.position", p), Subject: s.UserID, ExpiresAt: p.ExpiresAt, Generation: h.states[s.TripID].generations[s.UserID]})
+	h.broadcast(s.TripID, Delivery{Event: h.event(s.TripID, "participant.position", p), Subject: s.UserID, ExpiresAt: p.ExpiresAt, Generation: h.states[s.TripID].generations[s.UserID], receivedAt: received})
 	return nil
 }
 
@@ -302,7 +304,11 @@ func (h *Hub) Deliver(ctx context.Context, s *Subscription, d Delivery, write fu
 	} else if d.Subject != "" && (live.state.authorize(d.Subject) != nil || d.Generation != live.generations[d.Subject] || !h.now().Before(d.ExpiresAt)) {
 		return nil
 	}
-	return write(d.Event)
+	err := write(d.Event)
+	if d.Event.Type == "participant.position" && d.Subject != s.UserID && !d.receivedAt.IsZero() {
+		h.latency.observe(time.Since(d.receivedAt), err)
+	}
+	return err
 }
 func (h *Hub) Sweep(ctx context.Context) error {
 	if err := h.lock(ctx); err != nil {
