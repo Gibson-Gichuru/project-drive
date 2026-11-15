@@ -42,6 +42,11 @@ The baseline requires 100 successful peer samples, zero failed writes and p95 be
 homelab resource limits, mobile connectivity, high fan-out and sustained load need
 their own measurements. They must not be described as measured mobile latency.
 
+Delivery recovery: remove the timing changes in a new tested source commit and let
+the existing CI/image/Flux pipeline promote it. Retain the owner's consolidated
+field-test policy. There is no database migration, protocol change or phone data
+reset to reverse; keep all PVCs, immutable map releases and owner journals.
+
 ## Security and privacy review
 
 | Control reviewed | Evidence / boundary |
@@ -55,7 +60,7 @@ their own measurements. They must not be described as measured mobile latency.
 | Dependencies | Run the pinned Go vulnerability scan; retain existing Android lint/dependency/build evidence unless source or inputs change. A green scan is not a penetration test or legal/privacy certification. |
 
 Remaining release risks: production identity, complete beta security/privacy review,
-database restore exercise, map-data refresh with a newly downloaded snapshot,
+real backup/disaster recovery, map-data refresh with a newly downloaded snapshot,
 clean-machine Android SDK provisioning, multi-device field acceptance and resource-
 representative performance. No legal approval or production-readiness claim is made.
 
@@ -84,6 +89,14 @@ An offline packaging rehearsal can reuse the existing snapshot: run
 `sha256sum -c SHA256SUMS`, MBTiles integrity/tile count and the original source hash.
 This checks packaging and preserves the active dataset; it is not a fresh rebuild,
 live promotion, routing-quality review or restore test.
+
+The completed synthetic-only local restore rehearsal used an empty disposable
+database with one synthetic owner/trip/membership/recording/event, a custom-format
+dump and a separately created restore database. All saved fields across those
+tables and the four-entry migration ledger were compared after restore, with
+PostGIS and null event locations checked. Use only task-owned local data for this
+procedure. A live restore requires its own concrete recovery plan, backup selection
+and preservation of the original database/PVC; the rehearsal does not replace it.
 
 ## Demo sequence
 
