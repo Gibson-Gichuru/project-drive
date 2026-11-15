@@ -101,8 +101,7 @@ Provider setup gate (outside Git): create the prepared Google Web OAuth client
 with redirect `https://ghddrkgouwtagsgjqcxy.supabase.co/auth/v1/callback`; enter its
 ID/secret directly in Supabase's Google provider panel and enable it. Add the exact
 app callback to Supabase's redirect allowlist and use it as the native site URL;
-keep nonce/email checks enabled and disable the unused Email provider. While the
-Google consent project is in testing, configure the owner's test Google account.
+keep nonce/email checks enabled and disable the unused Email provider. The flow requests basic Google identity only (openid, email and profile). Google's basic-identity exception means the testing user list is not an access-control boundary; private trip access remains protected by Go membership checks.
 Google credentials must not be sent in chat, committed or copied to application
 Secrets. The browser's credential-entry handoff remains required. Real Google
 sign-in and hosted account/convoy/revocation acceptance remain unverified.
@@ -136,3 +135,42 @@ A final notice-only managed workflow `2349cb0e43db28bab23703fba483b24b` asked:
 “Does the final debug APK package the Supabase Kotlin MIT notice and updated authentication dependency notices?”
 `:app:assembleDebug` passed without warnings; direct APK inspection confirmed exact bundled notice bytes.
 The unused hosted Email provider is disabled. A verified HTTPS `/settings` check returned 200, email false and Google false; Google credentials are still pending handoff.
+
+## Final delivery and remaining gate
+
+Final application source `b2e83be74bbc9a5b07becd189342877513e4f227` passed
+GitHub CI [43730635021](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43730635021)
+and deployment [43731448068](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43731448068).
+Flux applied `homelab-deploy@sha1:cac69c5c6e108f47265ed39e4508f972cdbfcbf7`;
+the live API image matches that exact source and its rollout completed.
+API/router/tiles and the retained database are Ready. The unused standalone Auth
+and SMTP Deployment/Service are absent. DB/map PVC identities are unchanged.
+The operator used the existing authorized identity for the public-client Secret
+and exact retired SMTP resources/node rules; normal releases stayed on GitOps.
+
+On the actual phone, the Convoy sheet shows Continue with Google, no raw password
+or email form, and an honest pending-provider message. Retry loaded configuration
+from the promoted hosted backend. The notice-only APK was installed too; another
+private SQLite integrity/hash comparison confirms all six recordings and app data
+unchanged. No production Google account was signed in by the fixtures.
+
+The final public checks cover all five fixed Kenya routes, tile/glyph delivery,
+config 200 with Google pending and email disabled, password proxy 404, private
+trip creation without credentials 401, a well-formed forged hosted JWT 401 and
+unpublished Auth admin 404. Go vulnerability scanning found no vulnerabilities.
+The final notices workflow was finished, removing only its wrapper-owned logs.
+
+**Authentication remains in progress.** The prepared Google Web OAuth client
+form still needs its credential handoff: create the client, then enter its ID and
+secret directly in Supabase's Google provider panel and enable/save it. This step
+was not performed by the agent under the browser credential-entry handoff policy.
+No Google secret was generated, entered, stored in source, or requested in chat.
+After configuration, retry in Outset and perform a real stationary Google login,
+restoration, authorized convoy and sign-out/revocation check. No field drive is
+needed for that gate. Outstanding journey/head-unit/convoy field gates remain
+consolidated on 25 November.
+
+Google basic-identity/testing reference:
+[Google app audience policy](https://support.google.com/cloud/answer/15549945?hl=en).
+This final evidence update changes documentation only and does not require a new
+application image.
