@@ -133,8 +133,8 @@ class ConvoyDeviceTest {
                         "assert-removed" -> { waitFor { !vm.state.value.sharing && vm.state.value.participants.isEmpty() }; report("removal-confirmed") }
                         "permission-denied" -> { publishing = false; main { vm.onFix(LocationFix(Coordinate(-1.2864,36.82),12f,SystemClock.elapsedRealtime()), false, false) }; waitFor { !vm.state.value.sharing }; report("permission-stopped") }
                         "restart-sharing" -> { main { vm.startSharing() }; waitFor { vm.state.value.connected }; report("connected-again") }
-                        "background" -> { scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED); waitFor { !vm.state.value.sharing && vm.state.value.participants.isEmpty() }; scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED); assertFalse(vm.state.value.sharing); report("background-safe") }
-                        "rotate" -> { scenario.recreate(); assertFalse(vm.state.value.sharing); report("rotation-safe") }
+                        "background" -> { val wasSharing=vm.state.value.sharing;scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);assertEquals(wasSharing,vm.state.value.sharing);scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);assertEquals(wasSharing,vm.state.value.sharing);report("background-safe") }
+                        "rotate" -> { val wasSharing=vm.state.value.sharing;scenario.recreate();assertEquals(wasSharing,vm.state.value.sharing);report("rotation-safe") }
                         "finish" -> { main { vm.stopSharing() }; report("finished"); return }
                     }
                 }

@@ -21,8 +21,9 @@ now follows a fresh foreground location fix too.
 - Approximate/uncertain fixes use a wider zoom. Without a fix the map retains its
   viewport and displays a waiting/unavailable state. A fresh session without
   location shows Kenya coverage rather than a fabricated user position.
-- Location subscriptions stop in the background and resume in the foreground
-  when enabled. Guidance, recording and convoy sharing remain separate actions.
+- Idle map subscriptions stop in the background and resume in the foreground
+  when enabled. The later [journey-service change](background-journeys.md) keeps
+  explicitly started guidance, recording and sharing active with notification controls.
   This does not request background location permission.
 
 The native provider adapter attempts GPS and network registrations independently,

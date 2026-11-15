@@ -15,7 +15,7 @@ import org.projectdrive.app.core.navigation.Coordinate
 import kotlin.math.ceil
 
 @Composable
-fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?, destination: Coordinate?, locationEnabled: Boolean, playback: Boolean, importSession: () -> Unit) {
+fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?, destination: Coordinate?, locationEnabled: Boolean, playback: Boolean, importSession: () -> Unit, startSharing: () -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var joinCode by rememberSaveable { mutableStateOf("") }
     var tripId by rememberSaveable { mutableStateOf("") }
@@ -94,13 +94,13 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
         state.participants.filter { marker -> state.members.none { it.id == marker.id } }.forEach { marker ->
             Text("Participant ${marker.id.take(6)} · ${if (marker.stale(state.now)) "STALE" else "Recent"} · ±${ceil(marker.accuracy).toInt()} m · ${marker.age(state.now) / 1000}s ago", style = MaterialTheme.typography.bodySmall)
         }
-        Text("Green markers are recent; grey markers are stale. Last known positions expire automatically. Sharing stops when this app leaves the foreground.", style = MaterialTheme.typography.bodySmall)
+        Text("Green markers are recent; grey markers are stale. Last known positions expire automatically. Sharing continues with the journey notification when the screen is off. Stop it here or in the notification.", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = model::closeTrip, enabled = !state.busy) { Text("Close convoy view · stay a member") }
     }
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false }, title = { Text("Share with this convoy?") },
-        text = { Text("While ${stringResource(R.string.app_name)} is visible, your real GPS position, accuracy and timestamp go to this trip’s sharing members through your server. They are held in server memory for up to 30 seconds. Stop sharing or leave the app to stop publishing. Reopening the app never resumes sharing automatically.") },
-        confirmButton = { TextButton(onClick = { confirmShare = false; model.startSharing() }) { Text("Enable sharing") } },
+        text = { Text("During this journey, your real GPS position, accuracy and timestamp go to this trip’s sharing members through your server, including with the screen off or another app open. The ongoing journey notification provides a Stop action. Positions are held in server memory for up to 30 seconds. Use Stop sharing here or Stop journey in the notification to stop publishing. A terminated process never resumes sharing automatically.") },
+        confirmButton = { TextButton(onClick = { confirmShare = false; startSharing() }) { Text("Enable sharing") } },
         dismissButton = { TextButton(onClick = { confirmShare = false }) { Text("Keep sharing off") } },
     )
     confirmAction?.let { (title, action) -> AlertDialog(onDismissRequest = { confirmAction = null }, title = { Text(title) }, text = { Text("This changes the private trip for its members.") },

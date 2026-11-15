@@ -40,7 +40,7 @@ cd apps/android
 ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-The debug APK is written to `apps/android/app/build/outputs/apk/debug/app-debug.apk`. With existing foreground location permission, the map starts at a fresh current fix. Without permission, “Use my location” explains and requests access. “Turn location off” persists across restarts. Location collection stops in the background; recording, sharing and guidance require their own actions. Startup does not fill route endpoints. See [current-location behavior and checks](docs/current-location.md). Historical M0 startup/lifecycle evidence is recorded in [the device test](docs/device-tests/2026-11-13-M0.md).
+The debug APK is written to `apps/android/app/build/outputs/apk/debug/app-debug.apk`. With existing foreground location permission, the map starts at a fresh current fix. Without permission, “Use my location” explains and requests access. “Turn location off” persists across restarts. Idle map location stops in the background. Explicitly started guidance, recording and sharing continue through a visible journey service with notification Stop controls. See [background journeys](docs/background-journeys.md). Startup does not fill route endpoints. See [current-location behavior and checks](docs/current-location.md). Historical M0 startup/lifecycle evidence is recorded in [the device test](docs/device-tests/2026-11-13-M0.md).
 
 ## Verification
 

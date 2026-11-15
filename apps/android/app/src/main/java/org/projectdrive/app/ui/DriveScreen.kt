@@ -50,7 +50,7 @@ private enum class DriveTab {
 fun DriveScreen(
     state:NavigationState, model:NavigationViewModel, group:ConvoyState, convoy:ConvoyViewModel,
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
-    useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, importSession:()->Unit,
+    useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, startGuidance:()->Unit, startSharing:()->Unit, importSession:()->Unit,
 ) {
     var focusedRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(state.focusRequest) {
@@ -71,8 +71,8 @@ fun DriveScreen(
         recenter={if(state.route==null&&!state.gpsWanted&&!state.playback)locateMap() else renderer.recenter()}, stopGuidance=model::stopGuidance, finishRecording=finishRecording,
         stopSharing={convoy.stopSharing()},
         mapContent={ modifier -> AndroidView(factory={renderer.view},modifier=modifier) },
-        navigationContent={ backToMap -> NavigationPanel(state,model,recording.recording,useLocation,stopLocation,backToMap) },
-        convoyContent={ ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession) },
+        navigationContent={ backToMap -> NavigationPanel(state,model,recording.recording,useLocation,stopLocation,startGuidance,backToMap) },
+        convoyContent={ ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession,startSharing) },
         telemetryContent={ TelemetryPanel(recording,telemetry,group.trip,state.playback,startRecording,finishRecording) },
     )
 }
@@ -254,7 +254,7 @@ private fun DriveTabs(selected:DriveTab,select:(DriveTab)->Unit,modifier:Modifie
 }
 
 @Composable
-private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,recording:Boolean,useLocation:()->Unit,stopLocation:()->Unit,backToMap:()->Unit) {
+private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,recording:Boolean,useLocation:()->Unit,stopLocation:()->Unit,startGuidance:()->Unit,backToMap:()->Unit) {
     val route=state.route
     val active=state.guiding||state.playback
     if(route==null) {
@@ -297,7 +297,7 @@ private fun NavigationPanel(state:NavigationState,model:NavigationViewModel,reco
         Text(if(state.playback) "Simulated route playback · no live location is shared." else "Explore the map freely. Tap Recenter to follow your position again.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }else {
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            Button(onClick={model.startGuidance();if(model.state.value.guiding)backToMap()},modifier=Modifier.weight(1f).heightIn(min=52.dp)) { Text("Start guidance") }
+            Button(onClick={startGuidance();backToMap()},modifier=Modifier.weight(1f).heightIn(min=52.dp)) { Text("Start guidance") }
             OutlinedButton(onClick={model.playRoute();backToMap()},enabled=!recording,modifier=Modifier.weight(1f).heightIn(min=52.dp)) { Text("Play preview") }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {

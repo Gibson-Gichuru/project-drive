@@ -41,9 +41,10 @@ class TelemetryDeviceTest {
             Thread.sleep(1100)
             main{vm.onFix(LocationFix(Coordinate(-1.2864+i*0.0001,36.82),10f,SystemClock.elapsedRealtime(),speed,1f,0f,5f))}
         }
-        scenario.recreate();waitFor{!vm.state.value.recording&&!vm.state.value.saving&&vm.state.value.recordings.isNotEmpty()}
+        scenario.recreate();assertTrue("Rotation must preserve service recording",vm.state.value.recording)
+        main{vm.finish()};waitFor{!vm.state.value.recording&&!vm.state.value.saving&&vm.state.value.recordings.isNotEmpty()}
         val recording=vm.state.value.recordings.first();val summary=JSONObject(recording.summaryJSON)
-        assertTrue(summary.getBoolean("interrupted"));assertTrue(summary.getDouble("distance_m")>0);assertTrue(summary.getInt("speed_samples")>=9)
+        assertFalse(summary.getBoolean("interrupted"));assertTrue(summary.getDouble("distance_m")>0);assertTrue(summary.getInt("speed_samples")>=9)
         assertFalse(recording.summaryJSON.contains("latitude"));assertFalse(recording.eventsJSON.contains("longitude"))
         main{vm.upload(recording,trip)};waitFor{!vm.state.value.uploading&&vm.state.value.recordings.any{it.id==recording.id&&it.uploaded}}
         assertEquals("[]",vm.state.value.recordings.single{it.id==recording.id}.eventsJSON)

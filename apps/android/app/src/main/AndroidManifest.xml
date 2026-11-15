@@ -2,6 +2,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:name=".DriveApplication"
         android:allowBackup="false"
@@ -10,6 +15,7 @@
         android:roundIcon="@mipmap/ic_outset"
         android:supportsRtl="true"
         android:theme="@style/Theme.ProjectDrive">
+        <service android:name=".core.journey.JourneyService" android:exported="false" android:foregroundServiceType="location" android:stopWithTask="false" />
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

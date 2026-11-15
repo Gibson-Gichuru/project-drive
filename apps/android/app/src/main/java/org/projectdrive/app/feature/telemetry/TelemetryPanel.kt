@@ -37,7 +37,7 @@ fun TelemetryPanel(state: TelemetryState,model: TelemetryViewModel,trip: Trip?,p
         state.current?.let { SummaryCard(it) }
     }else{
         Button(onClick={disclosure=true},enabled=!state.saving && !state.uploading && !playback,modifier=Modifier.fillMaxWidth()){Text("Start local recording")}
-        Text("Works without an account or internet. Keep the app visible. Local summaries expire after seven days; at most 20 are kept.",style=MaterialTheme.typography.bodySmall)
+        Text("Works without an account or internet. The journey notification keeps recording with the screen off. Local summaries expire after seven days; at most 20 are kept.",style=MaterialTheme.typography.bodySmall)
         if(playback) Text("Stop preview playback before recording. Simulated route positions are never recorded.")
     }
     if(trip!=null) OutlinedButton(onClick={model.remote(trip)},enabled=!state.uploading && !state.recording){Text("Load my server summaries")}
@@ -48,13 +48,17 @@ fun TelemetryPanel(state: TelemetryState,model: TelemetryViewModel,trip: Trip?,p
         Text(Instant.ofEpochMilli(summary.startedAtMillis).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm")),style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.secondary)
         if(summary.interrupted) Text("Interrupted · saved portion only",color=MaterialTheme.colorScheme.error)
         SummaryCard(summary)
+        JSONObject(recording.summaryJSON).optJSONObject("field_test")?.let { field ->
+            Text("Test evidence · battery ${field.opt("battery_start_percent")} → ${field.opt("battery_end_percent")}% · background ${field.optDouble("background_s").toInt()} s · screen off ${field.optDouble("screen_off_s").toInt()} s",style=MaterialTheme.typography.bodySmall)
+            if(field.optDouble("charging_s")>0)Text("Charging occurred during this recording · battery drop is not a discharge-only measurement",style=MaterialTheme.typography.bodySmall)
+        }
         Text(if(recording.uploaded) "Uploaded · detailed local events cleared" else if(recording.uploadDeadlineMillis<=System.currentTimeMillis()) "Upload window expired · detailed events cleared" else "Local only · up to 100 derived events · upload within 24 hours",style=MaterialTheme.typography.bodySmall)
         if(trip!=null && trip.status in setOf("active","completed") && !recording.uploaded && recording.uploadDeadlineMillis>System.currentTimeMillis())
             OutlinedButton(onClick={upload=recording},enabled=!state.recording && !state.uploading && !state.saving){Text("Upload to ${trip.name}")}
         TextButton(onClick={delete=recording},enabled=!state.recording && !state.uploading && !state.saving){Text("Delete local summary")}
         }
     }
-    if(disclosure) AlertDialog(onDismissRequest={disclosure=false},title={Text("Record this journey locally?")},text={Text("While this screen is visible, ${stringResource(R.string.app_name)} reads GPS speed/position and supported motion sensors. Raw samples stay briefly in memory. Only estimates, quality metadata and up to 100 candidate events are saved locally for seven days. Nothing is uploaded or shared automatically. Leaving the app or rotating stops recording. Operate controls while parked or as a passenger.")},confirmButton={TextButton(onClick={disclosure=false;start()}){Text("Record locally")}},dismissButton={TextButton(onClick={disclosure=false}){Text("Keep recording off")}})
+    if(disclosure) AlertDialog(onDismissRequest={disclosure=false},title={Text("Record this journey locally?")},text={Text("During this journey, ${stringResource(R.string.app_name)} reads GPS speed/position and supported motion sensors. Raw samples stay briefly in memory. Only estimates, quality metadata and up to 100 candidate events are saved locally for seven days. Nothing is uploaded or shared automatically. Recording continues with the screen off or another app open. Use Finish recording or the notification Stop action. Force-stop or a system interruption ends the session; the last checkpoint is retained. Battery, screen-off time, network type and quality aggregates are also saved locally for this test; no device identifier or GPS path is saved. Operate controls while parked or as a passenger.")},confirmButton={TextButton(onClick={disclosure=false;start()}){Text("Record locally")}},dismissButton={TextButton(onClick={disclosure=false}){Text("Keep recording off")}})
     upload?.let { recording -> AlertDialog(onDismissRequest={upload=null},title={Text("Upload your derived telemetry?")},text={Text("Send this summary, timestamps, quality metadata and candidate events to the selected private trip. No GPS path or raw sensor samples are sent. Only your authenticated account can read this telemetry through the API. Server retention is seven days; this action is separate from live convoy sharing.")},confirmButton={TextButton(onClick={upload=null;if(trip!=null)model.upload(recording,trip)}){Text("Upload estimates")}},dismissButton={TextButton(onClick={upload=null}){Text("Keep local")}}) }
     delete?.let { recording -> AlertDialog(onDismissRequest={delete=null},title={Text("Delete local summary?")},text={Text("This removes the saved summary and local event details. An already uploaded copy expires separately on the server after seven days.")},confirmButton={TextButton(onClick={delete=null;model.delete(recording)}){Text("Delete locally")}},dismissButton={TextButton(onClick={delete=null}){Text("Keep summary")}}) }
 }

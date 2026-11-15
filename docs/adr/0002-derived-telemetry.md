@@ -14,9 +14,11 @@ anchor elapsed time and UTC is derived from the recording's initial wall clock.
 
 Record only after a separate disclosure and explicit opt-in. Recording is local,
 independent from navigation consent, convoy sharing and upload. It needs no
-account/network. Leaving the foreground or rotation stops capture and marks an
-interrupted summary; restart never resumes it. Keep the screen awake only during
-an active recording. No background service or location permission was added.
+account/network. The original M5 implementation stopped on background/rotation. The owner-authorized
+15 November [journey service](../background-journeys.md) now preserves explicit
+recording through background, screen-off and rotation, with a notification Stop
+action. Process termination still produces an interrupted checkpoint and never
+resumes automatically. No background-location permission is requested.
 
 Estimate distance from successive fresh fixes with reported accuracy at most
 50 m. Exclude spatial jumps above 100 m/s and gaps over five seconds. Suppress

@@ -104,6 +104,10 @@ def main():
             for device in devices:
                 adb(device, 'install', '-r', str(ROOT / 'apps/android/app/build/outputs/apk/debug/app-debug.apk'))
                 adb(device, 'install', '-r', '-t', str(ROOT / 'apps/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk'))
+                if device.startswith('emulator-'):
+                    for permission in ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS']:
+                        adb(device, 'shell', 'pm', 'grant', PACKAGE, 'android.permission.' + permission)
+                # The physical participant must have granted location/notification access itself.
                 adb(device, 'reverse', 'tcp:18082', 'tcp:8080')
                 adb(device, 'reverse', 'tcp:18081', 'tcp:18081')
                 adb(device, 'shell', 'input', 'keyevent', 'KEYCODE_WAKEUP')
@@ -169,7 +173,7 @@ def main():
             command(devices[0], 'background', 'background-safe')
             command(devices[0], 'restart-sharing', 'connected-again')
             command(devices[0], 'rotate', 'rotation-safe')
-            print('PASS: background/rotation never silently restore sharing', flush=True)
+            print('PASS: explicitly started sharing continues through background/rotation; process restart is checked separately', flush=True)
             command(devices[0], 'prepare-restart', 'restart-armed')
             adb(devices[0], 'shell', 'am', 'force-stop', PACKAGE)
             recovery = run([ADB, '-s', devices[0], 'shell', 'am', 'instrument', '-w', '-e', 'class', 'org.projectdrive.app.ConvoyDeviceTest#processRestartRevokesWithoutResuming', PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner'])

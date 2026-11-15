@@ -17,6 +17,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object ConvoyModule {
+    @Provides @Singleton fun navigationSession()=org.projectdrive.app.NavigationSession()
     @Provides @Singleton fun client() = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(10, TimeUnit.SECONDS)
         .callTimeout(12, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
     @Provides @Singleton fun database(@ApplicationContext context: Context) = Room.databaseBuilder(context, ConvoyDatabase::class.java, "convoy.db").addMigrations(TELEMETRY_MIGRATION).build()

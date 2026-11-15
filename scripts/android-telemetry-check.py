@@ -59,15 +59,15 @@ def main():
             request('POST', '/v1/trips/' + trip['id'] + '/start')
             for apk in ['debug/app-debug.apk', 'androidTest/debug/app-debug-androidTest.apk']:
                 run(adb + ['install', '-r', '-t', ROOT / 'apps/android/app/build/outputs/apk' / apk])
-            # Keep native GPS callbacks out of this deterministic synthetic test.
-            for permission in ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION']:
-                run(adb + ['shell', 'pm', 'revoke', PACKAGE, 'android.permission.' + permission])
+            # The location foreground service requires permissions, even for a synthetic emulator fixture.
+            for permission in ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'POST_NOTIFICATIONS']:
+                run(adb + ['shell', 'pm', 'grant', PACKAGE, 'android.permission.' + permission])
             run(adb + ['reverse', 'tcp:18082', 'tcp:8080'])
             def instrument(test):
                 return adb + ['shell', 'am', 'instrument', '-w', '-e', 'class', test, PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner']
             safety = run(instrument('org.projectdrive.app.TelemetrySafetyTest'))
             (private / 'safety.log').write_bytes(safety)
-            if b'OK (3 tests)' not in safety:
+            if b'OK (4 tests)' not in safety:
                 raise RuntimeError('Telemetry safety acceptance failed')
             print('PASS: Room v1 migration, durable bounded recovery/expiry/upload binding, native sensor start/stop', flush=True)
             fixture = json.dumps({'token': token, 'trip_id': trip['id']}).encode()
@@ -88,7 +88,7 @@ def main():
                 time.sleep(.5)
             else:
                 raise RuntimeError('Capture acceptance timed out')
-            print('PASS: synthetic GPS recording, rotation interruption, durable summary, native upload and private remote summary', flush=True)
+            print('PASS: synthetic GPS recording, rotation continuation, durable summary, native upload and private remote summary', flush=True)
             run(adb + ['shell', 'am', 'force-stop', PACKAGE])
             process.wait(timeout=15)
             recovery = run(instrument('org.projectdrive.app.TelemetryDeviceTest#recoverAfterRealProcessDeath'))
