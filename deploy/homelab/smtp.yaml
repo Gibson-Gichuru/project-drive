@@ -83,6 +83,11 @@ spec:
           value: paranoid
         - name: LOG_FORMAT
           value: json
+        startupProbe:
+          tcpSocket:
+            port: smtp
+          periodSeconds: 5
+          failureThreshold: 60
         readinessProbe:
           tcpSocket:
             port: smtp
