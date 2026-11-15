@@ -99,7 +99,7 @@ class MapInteractionTest {
                         for(index in 0 until node.childCount) node.getChild(index)?.let { addAll(descendants(it)) }
                     }
                     val matches=instrumentation.uiAutomation.rootInActiveWindow?.let(::descendants).orEmpty()
-                    for(node in matches.filter{it.text?.toString()==text}) {
+                    for(node in matches.filter{it.text?.toString()==text || it.contentDescription?.toString()==text}) {
                         var candidate:AccessibilityNodeInfo?=node
                         repeat(4) {
                             val current=candidate
@@ -193,7 +193,25 @@ class MapInteractionTest {
             scenario.onActivity{checkNotNull(model).setOrigin("-1.2864, 36.8200");checkNotNull(model).setDestination("-1.3152, 36.8148");checkNotNull(model).previewRoute()}
             waitFor("Public sample route unavailable"){checkNotNull(model).state.value.route!=null}
             Thread.sleep(1200)
-            println("Stage: public preview ready");val overview=camera();pan();val explored=camera()
+            // Check the endpoint against actual UI bounds, also run at 130% text.
+            fun descendants(node:AccessibilityNodeInfo):List<AccessibilityNodeInfo> = buildList {
+                add(node)
+                for(i in 0 until node.childCount)node.getChild(i)?.let{addAll(descendants(it))}
+            }
+            val title=checkNotNull(model).state.value.destinationLabel
+            var titleNode:AccessibilityNodeInfo?=null
+            waitFor("Journey card title unavailable") {
+                titleNode=instrumentation.uiAutomation.rootInActiveWindow?.let(::descendants)?.firstOrNull{it.text?.toString()==title}
+                titleNode!=null
+            }
+            val titleBounds=Rect();checkNotNull(titleNode).getBoundsInScreen(titleBounds)
+            scenario.onActivity{activity->
+                val endpoint=checkNotNull(checkNotNull(model).state.value.destination)
+                val point=checkNotNull(map.get()).projection.toScreenLocation(org.maplibre.android.geometry.LatLng(endpoint.latitude,endpoint.longitude))
+                val density=activity.resources.displayMetrics.density
+                assertTrue("Route endpoint is hidden by the journey card",point.y+10*density<titleBounds.top-24*density)
+            }
+            println("Stage: public preview ready and endpoint clear of card");val overview=camera();pan();val explored=camera()
             println("Native gesture callbacks: ${gestures.get()}; camera changed: ${delta(overview,explored)>.0001}")
             assertTrue("Preview pan did not move native camera",delta(overview,explored)>.0001)
             Thread.sleep(2200);assertTrue("UI refresh stole manually panned camera",delta(explored,camera())<.00001)

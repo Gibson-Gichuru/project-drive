@@ -14,11 +14,13 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /** Small original line icons; no font, image download or icon SDK. */
-enum class DriveSymbol { Road, Compass, Convoy, Journal, Locate, Arrow, Edit, Chevron, Shield, Close, Pause }
+enum class DriveSymbol { Road, Compass, Convoy, Journal, Locate, Arrow, Edit, Chevron, Shield, Close, Pause, Back, More }
 private fun vector(name:String,draw:PathBuilder.()->Unit)=ImageVector.Builder(name,24.dp,24.dp,24f,24f).apply{
     path(fill=null,stroke=SolidColor(Color.Black),strokeLineWidth=1.8f,strokeLineCap=StrokeCap.Round,strokeLineJoin=StrokeJoin.Round,pathBuilder=draw)
 }.build()
 private val symbols=mapOf(
+    DriveSymbol.Back to vector("Back") { moveTo(14f,5f);lineTo(7f,12f);lineTo(14f,19f) },
+    DriveSymbol.More to vector("More") { moveTo(12f,5f);lineTo(12f,5.1f);moveTo(12f,12f);lineTo(12f,12.1f);moveTo(12f,19f);lineTo(12f,19.1f) },
     DriveSymbol.Road to vector("Road") { moveTo(5f,21f);curveTo(4f,13f,14f,14f,11f,3f);moveTo(15f,21f);curveTo(14f,14f,22f,13f,18f,3f);moveTo(10f,20f);lineTo(10f,18f);moveTo(12f,14f);lineTo(13f,12f);moveTo(15f,8f);lineTo(15f,5f) },
     DriveSymbol.Compass to vector("Compass") { moveTo(12f,2f);curveTo(25.3f,2f,25.3f,22f,12f,22f);curveTo(-1.3f,22f,-1.3f,2f,12f,2f);moveTo(16f,8f);lineTo(13.5f,13.5f);lineTo(8f,16f);lineTo(10.5f,10.5f);close() },
     DriveSymbol.Convoy to vector("Convoy") { moveTo(3f,17f);lineTo(3f,13f);lineTo(5f,9f);lineTo(14f,9f);lineTo(16f,13f);lineTo(16f,17f);close();moveTo(3f,13f);lineTo(16f,13f);moveTo(5f,17f);lineTo(5f,19f);moveTo(14f,17f);lineTo(14f,19f);moveTo(8f,5f);lineTo(18f,5f);lineTo(21f,10f);lineTo(21f,15f);lineTo(19f,15f);moveTo(6f,15f);lineTo(7f,15f);moveTo(12f,15f);lineTo(13f,15f) },

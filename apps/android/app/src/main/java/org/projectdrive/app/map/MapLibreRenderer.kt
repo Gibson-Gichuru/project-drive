@@ -67,7 +67,7 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             ready.uiSettings.isLogoEnabled=false
             ready.uiSettings.setAttributionGravity(android.view.Gravity.BOTTOM or android.view.Gravity.END)
             ready.uiSettings.setAttributionMargins(0,0,(8*density).toInt(),(24*density).toInt())
-            ready.uiSettings.setAttributionTintColor(android.graphics.Color.parseColor(if(night)"#a3d7b6" else "#205744"))
+            ready.uiSettings.setAttributionTintColor(android.graphics.Color.parseColor(if(night)"#d3dce3" else "#242628"))
             ready.uiSettings.setCompassMargins(0,(56*density).toInt(),(16*density).toInt(),0)
             ready.uiSettings.setAllGesturesEnabled(true)
             ready.addOnCameraMoveStartedListener { reason ->
@@ -80,11 +80,13 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             ready.setStyle(Style.Builder().fromJson(json)) { style ->
                 listOf("route", "origin", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
                 style.addLayer(LineLayer("route-casing", "route").withProperties(lineColor(if(night) "#10281f" else "#ffffff"), lineWidth(9f), lineOpacity(0.95f), lineCap("round"), lineJoin("round")))
-                style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(if(night) "#97d7ac" else "#236653"), lineWidth(5f), lineOpacity(1f), lineCap("round"), lineJoin("round")))
+                style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(if(night) "#a8c7fa" else "#3278f6"), lineWidth(5f), lineOpacity(1f), lineCap("round"), lineJoin("round")))
                 style.addLayer(CircleLayer("origin-dot","origin").withProperties(circleColor("#205744"),circleRadius(6f),circleStrokeColor("#ffffff"),circleStrokeWidth(2f)))
                 style.addLayer(SymbolLayer("origin-label","origin").withProperties(textField("Start"),textFont(arrayOf("Noto Sans Regular")),textSize(12f),textColor("#205744"),textHaloColor("#ffffff"),textHaloWidth(2f),textOffset(arrayOf(0f,-1.3f))))
                 style.addLayer(CircleLayer("destination-dot", "destination").withProperties(circleColor("#c15c45"), circleRadius(7f), circleStrokeColor("#ffffff"), circleStrokeWidth(2f)))
-                style.addLayer(CircleLayer("position-dot", "position").withProperties(circleColor("#2468c6"), circleRadius(9f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
+                style.addImage("vehicle-live",vehicleBadge(android.graphics.Color.parseColor("#242628")))
+                style.addImage("vehicle-preview",vehicleBadge(android.graphics.Color.parseColor("#65479c")))
+                style.addLayer(SymbolLayer("position-badge", "position").withProperties(iconImage("vehicle-live"),iconAnchor("bottom"),iconAllowOverlap(true),iconIgnorePlacement(true)))
                 style.addLayer(FillLayer("convoy-accuracy-area", "convoy-accuracy").withProperties(fillColor("#087f5b"), fillOpacity(0.12f)))
                 style.addLayer(CircleLayer("convoy-fresh-dot", "convoy-fresh").withProperties(circleColor("#087f5b"), circleRadius(10f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
                 style.addLayer(CircleLayer("convoy-stale-dot", "convoy-stale").withProperties(circleColor("#666666"), circleRadius(10f), circleStrokeColor("#ffffff"), circleStrokeWidth(3f)))
@@ -122,7 +124,7 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         style.getSourceAs<GeoJsonSource>("origin")?.setGeoJson(origin?.let { point(it) } ?: emptyCollection)
         style.getSourceAs<GeoJsonSource>("destination")?.setGeoJson(destination?.let { point(it) } ?: emptyCollection)
         style.getSourceAs<GeoJsonSource>("position")?.setGeoJson(position?.let { point(it) } ?: emptyCollection)
-        style.getLayerAs<CircleLayer>("position-dot")?.setProperties(circleColor(if (simulated) "#8e4ab8" else "#2468c6"))
+        style.getLayerAs<SymbolLayer>("position-badge")?.setProperties(iconImage(if(simulated)"vehicle-preview" else "vehicle-live"))
     }
 
     fun focus(coordinate:Coordinate) {
@@ -162,8 +164,9 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
                     val density=mapView.resources.displayMetrics.density
                     val landscape=mapView.width>mapView.height
                     val side=(24*density).toInt().coerceAtMost(mapView.width/6)
-                    val top=((if(landscape)70 else 140)*density).toInt().coerceAtMost(mapView.height/4)
-                    val bottom=((if(landscape)180 else 240)*density).toInt().coerceAtMost(mapView.height*45/100)
+                    val top=(80*density).toInt().coerceAtMost(mapView.height/4)
+                    val textGrowth=(mapView.resources.configuration.fontScale-1f).coerceAtLeast(0f)
+                    val bottom=((if(landscape)150f else 260f+180f*textGrowth)*density).toInt().coerceAtMost(mapView.height*45/100)
                     ready.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds,side,top,side,bottom))
                     fitted = current
                 }
@@ -171,6 +174,30 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
             }
             if (fallback) ready.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(-1.2921, 36.8219), if (currentPosition != null) 16.0 else 12.0))
         }
+    }
+
+    /** Original vehicle pin, without a fabricated profile photograph or heading. */
+    private fun vehicleBadge(color:Int):android.graphics.Bitmap {
+        val bitmap=android.graphics.Bitmap.createBitmap(56,66,android.graphics.Bitmap.Config.ARGB_8888)
+        // The style image uses logical pixels; keep its size consistent across densities.
+        bitmap.density=android.util.DisplayMetrics.DENSITY_DEFAULT
+        val canvas=android.graphics.Canvas(bitmap)
+        val paint=android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        paint.color=android.graphics.Color.argb(65,0,0,0);canvas.drawCircle(28f,30f,27f,paint)
+        paint.color=color
+        val tip=android.graphics.Path().apply{moveTo(16f,44f);lineTo(28f,65f);lineTo(40f,44f);close()}
+        canvas.drawPath(tip,paint);canvas.drawCircle(28f,28f,25f,paint)
+        paint.style=android.graphics.Paint.Style.STROKE;paint.strokeWidth=1.5f
+        paint.color=android.graphics.Color.parseColor("#747b80");canvas.drawCircle(28f,28f,21f,paint)
+        paint.strokeWidth=2f;paint.strokeCap=android.graphics.Paint.Cap.ROUND;paint.strokeJoin=android.graphics.Paint.Join.ROUND
+        paint.color=android.graphics.Color.WHITE
+        val car=android.graphics.Path().apply{
+            moveTo(15f,35f);lineTo(15f,26f);lineTo(19f,19f);lineTo(37f,19f);lineTo(41f,26f);lineTo(41f,35f);close()
+            moveTo(15f,26f);lineTo(41f,26f);moveTo(19f,35f);lineTo(19f,39f);moveTo(37f,35f);lineTo(37f,39f)
+            moveTo(20f,30f);lineTo(22f,30f);moveTo(34f,30f);lineTo(36f,30f)
+        }
+        canvas.drawPath(car,paint)
+        return bitmap
     }
 
     fun onStart() = mapView.onStart()

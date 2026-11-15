@@ -1,6 +1,6 @@
 {
   "version": 8,
-  "name": "Project Drive Kenya \u00b7 Night",
+  "name": "Outset Kenya Night",
   "glyphs": "__BASE_URL__/maps/fonts/{fontstack}/{range}",
   "sources": {
     "kenya": {
@@ -18,7 +18,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#15251e"
+        "background-color": "#1b2024"
       }
     },
     {
@@ -27,7 +27,7 @@
       "source": "kenya",
       "source-layer": "landcover",
       "paint": {
-        "fill-color": "#263e2c",
+        "fill-color": "#293d35",
         "fill-opacity": 0.65
       }
     },
@@ -37,7 +37,7 @@
       "source": "kenya",
       "source-layer": "park",
       "paint": {
-        "fill-color": "#2a4732",
+        "fill-color": "#2a483b",
         "fill-opacity": 0.7
       }
     },
@@ -47,7 +47,7 @@
       "source": "kenya",
       "source-layer": "landuse",
       "paint": {
-        "fill-color": "#20352b",
+        "fill-color": "#272e33",
         "fill-opacity": 0.5
       }
     },
@@ -57,7 +57,7 @@
       "source": "kenya",
       "source-layer": "water",
       "paint": {
-        "fill-color": "#254a53"
+        "fill-color": "#28495b"
       }
     },
     {
@@ -66,7 +66,7 @@
       "source": "kenya",
       "source-layer": "waterway",
       "paint": {
-        "line-color": "#254a53",
+        "line-color": "#28495b",
         "line-width": 1.5
       }
     },
@@ -77,8 +77,8 @@
       "source-layer": "building",
       "minzoom": 13,
       "paint": {
-        "fill-color": "#33463a",
-        "fill-outline-color": "#425749"
+        "fill-color": "#353c43",
+        "fill-outline-color": "#414951"
       }
     },
     {
@@ -187,7 +187,7 @@
       },
       "paint": {
         "text-color": "#c6d2bd",
-        "text-halo-color": "#15251e",
+        "text-halo-color": "#1b2024",
         "text-halo-width": 1.5
       }
     },
@@ -227,7 +227,7 @@
       },
       "paint": {
         "text-color": "#d5e1cd",
-        "text-halo-color": "#15251e",
+        "text-halo-color": "#1b2024",
         "text-halo-width": 1.5
       }
     }

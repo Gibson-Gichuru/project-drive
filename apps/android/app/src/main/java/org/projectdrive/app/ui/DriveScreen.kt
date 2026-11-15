@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
+import org.projectdrive.app.R
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
@@ -71,7 +74,7 @@ fun DriveScreen(
     )
 }
 
-/** Full-screen map with a small tool dock. Detail controls appear only on request. */
+/** Map canvas with a compact journey card; tools remain in a dismissible sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriveContent(
@@ -86,62 +89,70 @@ fun DriveContent(
     var tab by rememberSaveable { mutableStateOf(DriveTab.Navigation) }
     var toolsOpen by rememberSaveable { mutableStateOf(false) }
     val panelState=rememberSaveableStateHolder()
-    val active=state.guiding||state.playback
     val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
     var openedRequest by rememberSaveable { mutableStateOf(0L) }
+    fun openTools(selected:DriveTab) { tab=selected;toolsOpen=true }
     LaunchedEffect(state.plannerRequest) {
         if(state.plannerRequest>0 && openedRequest!=state.plannerRequest) {
-            tab=DriveTab.Navigation;toolsOpen=true;openedRequest=state.plannerRequest
+            openTools(DriveTab.Navigation);openedRequest=state.plannerRequest
         }
     }
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         mapContent(Modifier.fillMaxSize())
-        Column(Modifier.align(Alignment.TopStart).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).padding(16.dp).widthIn(max=380.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            if(!landscape) Surface(shape=RoundedCornerShape(20.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.96f),shadowElevation=3.dp) {
-                Row(Modifier.padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                    DriveIcon(DriveSymbol.Road,tint=MaterialTheme.colorScheme.primary)
-                    Column {
-                        Text("Project Drive",style=MaterialTheme.typography.titleMedium)
-                        Text(if(state.playback)"Simulated preview" else if(state.guiding)"One turn at a time" else "Take the scenic way",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+        Column(
+            Modifier.align(Alignment.TopCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal))
+                .padding(16.dp),
+            verticalArrangement=Arrangement.spacedBy(8.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+                MapAction(DriveSymbol.Back,"Navigation",{openTools(DriveTab.Navigation)})
+                MapAction(DriveSymbol.More,"More tools",{toolsOpen=true})
+            }
+            if(state.loading) Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface) {
+                Column(Modifier.widthIn(max=360.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("Finding your route…",style=MaterialTheme.typography.bodySmall)
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
                 }
             }
-            if(state.loading) StatusNote("Finding your route…",active=true)
-            state.error?.let { message -> Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.errorContainer) { Text(message,Modifier.padding(12.dp),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onErrorContainer) } }
-            StatusNote(if(recording && !state.gpsWanted) "Local recording · location in use" else state.locationStatus,active=state.gpsWanted||recording)
-            if(recording) Button(onClick=finishRecording,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error),modifier=Modifier.heightIn(min=48.dp)) { Text("Finish recording") }
-            if(sharing) Button(onClick=stopSharing,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error),modifier=Modifier.heightIn(min=48.dp)) { Text("Stop sharing now") }
+            state.error?.let { message -> Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.errorContainer) {
+                Text(message,Modifier.widthIn(max=360.dp).padding(12.dp),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onErrorContainer)
+            } }
+            if(recording || sharing) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                if(recording) Button(onClick=finishRecording,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error,contentColor=MaterialTheme.colorScheme.onError),modifier=Modifier.weight(1f,fill=false).heightIn(min=48.dp)) { Text("Finish recording") }
+                if(sharing) Button(onClick=stopSharing,colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.error,contentColor=MaterialTheme.colorScheme.onError),modifier=Modifier.weight(1f,fill=false).heightIn(min=48.dp)) { Text("Stop sharing now") }
+            }
         }
-        Column(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal)).padding(horizontal=16.dp,vertical=10.dp).widthIn(max=560.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically) {
-                if(landscape) FilledTonalButton(onClick={toolsOpen=true},modifier=Modifier.heightIn(min=48.dp).padding(end=8.dp)) { Text("Tools") }
-                Button(onClick=recenter,modifier=Modifier.heightIn(min=48.dp),colors=ButtonDefaults.buttonColors(containerColor=if(exploring)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,contentColor=if(exploring)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary),elevation=ButtonDefaults.buttonElevation(defaultElevation=3.dp)) {
-                    DriveIcon(DriveSymbol.Locate,tint=if(exploring)MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp));Text("Recenter")
-                }
+        Column(
+            Modifier.align(if(landscape)Alignment.BottomStart else Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
+                .padding(horizontal=16.dp,vertical=8.dp)
+                .widthIn(max=if(landscape)400.dp else 560.dp),
+            verticalArrangement=Arrangement.spacedBy(12.dp),
+        ) {
+            if(!landscape) Column(Modifier.align(Alignment.End),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                MapAction(DriveSymbol.Locate,"Recenter",recenter,highlighted=exploring)
+                MapAction(DriveSymbol.Convoy,"Convoy",{openTools(DriveTab.Convoy)})
             }
-            if(state.route!=null) Surface(onClick={tab=DriveTab.Navigation;toolsOpen=true},shape=RoundedCornerShape(22.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=3.dp) {
-                Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-                    DriveIcon(DriveSymbol.Road,tint=MaterialTheme.colorScheme.primary)
-                    Column(Modifier.weight(1f)) {
-                        Text(if(active) state.progress?.let { if(it.arrived) if(state.playback)"Preview complete" else "You have arrived" else if(it.distanceToRouteMeters>60)"Off route · stop safely before choosing a new route" else it.maneuver.instruction } ?: "Waiting for location" else "Your route is ready",style=MaterialTheme.typography.titleSmall,maxLines=2,overflow=TextOverflow.Ellipsis)
-                        Text(if(exploring&&active)"Exploring · tap Recenter to follow" else String.format(Locale.ROOT,"%.1f km · %d min full drive",(state.progress?.remainingMeters?:state.route.distanceMeters)/1000,ceil(state.route.durationSeconds/60).toInt()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if(active) TextButton(onClick=stopGuidance) { Text("Stop",color=MaterialTheme.colorScheme.error) }
-                    else DriveIcon(DriveSymbol.Chevron,tint=MaterialTheme.colorScheme.primary)
-                }
+            JourneyDock(state,exploring,recording,sharing,stopGuidance,
+                navigation={openTools(DriveTab.Navigation)},journal={openTools(DriveTab.Telemetry)},more={toolsOpen=true})
+            Surface(modifier=Modifier.padding(end=40.dp),shape=RoundedCornerShape(6.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.92f)) {
+                Text("© OpenStreetMap contributors · © OpenMapTiles",Modifier.padding(horizontal=6.dp,vertical=2.dp),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if(!landscape) Surface(shape=RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=4.dp) {
-                DriveTabs(tab,{tab=it;toolsOpen=true},Modifier.fillMaxWidth())
-            }
-            Surface(modifier=Modifier.padding(end=40.dp),shape=RoundedCornerShape(8.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.94f)) {
-                Text("© OpenStreetMap contributors · © OpenMapTiles",Modifier.padding(horizontal=8.dp,vertical=2.dp),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        }
+        if(landscape) Column(
+            Modifier.align(Alignment.BottomEnd)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
+                .padding(end=16.dp,bottom=36.dp),
+            verticalArrangement=Arrangement.spacedBy(10.dp),
+        ) {
+            MapAction(DriveSymbol.Locate,"Recenter",recenter,highlighted=exploring)
+            MapAction(DriveSymbol.Convoy,"Convoy",{openTools(DriveTab.Convoy)})
         }
     }
     if(toolsOpen) ModalBottomSheet(onDismissRequest={toolsOpen=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth().padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
-            Text("Road-trip tools",Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.app_name),Modifier.weight(1f),style=MaterialTheme.typography.titleLarge)
             TextButton(onClick={toolsOpen=false}) { Text("Back to map") }
         }
         DriveTabs(tab,{tab=it},Modifier.fillMaxWidth())
@@ -152,6 +163,70 @@ fun DriveContent(
                     DriveTab.Convoy -> convoyContent()
                     DriveTab.Telemetry -> telemetryContent()
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapAction(symbol:DriveSymbol,label:String,onClick:()->Unit,modifier:Modifier=Modifier,highlighted:Boolean=false) {
+    Surface(onClick=onClick,modifier=modifier.size(48.dp),shape=CircleShape,
+        color=if(highlighted)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+        shadowElevation=4.dp) {
+        Box(contentAlignment=Alignment.Center) {
+            DriveIcon(symbol,description=label,modifier=Modifier.size(23.dp),tint=if(highlighted)MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun JourneyDock(
+    state:NavigationState,exploring:Boolean,recording:Boolean,sharing:Boolean,stopGuidance:()->Unit,
+    navigation:()->Unit,journal:()->Unit,more:()->Unit,modifier:Modifier=Modifier,
+) {
+    val active=state.guiding||state.playback
+    val compact=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
+    val title=when {
+        state.playback -> "Simulated preview"
+        state.guiding -> state.progress?.let { if(it.arrived)"You have arrived" else if(it.distanceToRouteMeters>60)"Off route · stop safely to replan" else it.maneuver.instruction } ?: "Waiting for location"
+        state.route!=null -> state.destinationLabel.ifBlank{"Your route is ready"}
+        recording -> "Your drive is recording"
+        else -> "Your next adventure"
+    }
+    val subtitle=when {
+        exploring&&active -> "Exploring · Recenter to follow"
+        state.route!=null -> String.format(Locale.ROOT,"%.1f km · %d min full drive",(state.progress?.remainingMeters?:state.route.distanceMeters)/1000,ceil(state.route.durationSeconds/60).toInt())
+        recording -> "Journal saved on this phone"
+        sharing -> "Live sharing on"
+        state.gpsWanted -> state.locationStatus
+        else -> "Find a place. Make a memory."
+    }
+    Surface(modifier=modifier.fillMaxWidth(),shape=RoundedCornerShape(28.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=8.dp) {
+        Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(50.dp)) {
+                    Box(Modifier.fillMaxSize().clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),contentAlignment=Alignment.Center) {
+                        DriveIcon(DriveSymbol.Convoy,modifier=Modifier.size(27.dp))
+                    }
+                    if(recording||sharing) Box(Modifier.align(Alignment.TopEnd).padding(2.dp).size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondary))
+                }
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)) {
+                    Text(title,style=MaterialTheme.typography.titleSmall,maxLines=2,overflow=TextOverflow.Ellipsis)
+                    Text(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2,overflow=TextOverflow.Ellipsis)
+                    if(!compact&&!state.gpsWanted&&!recording&&!sharing) Text("Location off · explore freely",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if(active) TextButton(onClick=stopGuidance,contentPadding=PaddingValues(horizontal=4.dp)) { Text("Stop",color=MaterialTheme.colorScheme.error) }
+                if(compact) MapAction(DriveSymbol.Compass,"Route details",navigation)
+            }
+            if(!compact) Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+                Button(onClick=navigation,modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=CircleShape,
+                    contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp),
+                    colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.surfaceVariant,contentColor=MaterialTheme.colorScheme.onSurface)) {
+                    DriveIcon(DriveSymbol.Compass,modifier=Modifier.size(20.dp));Spacer(Modifier.width(8.dp))
+                    Text(if(state.route!=null)"Route details" else "Plan a drive",maxLines=1,overflow=TextOverflow.Ellipsis)
+                }
+                MapAction(DriveSymbol.Journal,"Journal",journal,highlighted=recording)
+                MapAction(DriveSymbol.More,"More tools",more)
             }
         }
     }

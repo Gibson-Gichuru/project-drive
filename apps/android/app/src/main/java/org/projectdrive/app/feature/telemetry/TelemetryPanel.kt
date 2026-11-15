@@ -3,6 +3,8 @@ package org.projectdrive.app.feature.telemetry
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
+import org.projectdrive.app.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.projectdrive.app.ui.*
@@ -52,7 +54,7 @@ fun TelemetryPanel(state: TelemetryState,model: TelemetryViewModel,trip: Trip?,p
         TextButton(onClick={delete=recording},enabled=!state.recording && !state.uploading && !state.saving){Text("Delete local summary")}
         }
     }
-    if(disclosure) AlertDialog(onDismissRequest={disclosure=false},title={Text("Record this journey locally?")},text={Text("While this screen is visible, Project Drive reads GPS speed/position and supported motion sensors. Raw samples stay briefly in memory. Only estimates, quality metadata and up to 100 candidate events are saved locally for seven days. Nothing is uploaded or shared automatically. Leaving the app or rotating stops recording. Operate controls while parked or as a passenger.")},confirmButton={TextButton(onClick={disclosure=false;start()}){Text("Record locally")}},dismissButton={TextButton(onClick={disclosure=false}){Text("Keep recording off")}})
+    if(disclosure) AlertDialog(onDismissRequest={disclosure=false},title={Text("Record this journey locally?")},text={Text("While this screen is visible, ${stringResource(R.string.app_name)} reads GPS speed/position and supported motion sensors. Raw samples stay briefly in memory. Only estimates, quality metadata and up to 100 candidate events are saved locally for seven days. Nothing is uploaded or shared automatically. Leaving the app or rotating stops recording. Operate controls while parked or as a passenger.")},confirmButton={TextButton(onClick={disclosure=false;start()}){Text("Record locally")}},dismissButton={TextButton(onClick={disclosure=false}){Text("Keep recording off")}})
     upload?.let { recording -> AlertDialog(onDismissRequest={upload=null},title={Text("Upload your derived telemetry?")},text={Text("Send this summary, timestamps, quality metadata and candidate events to the selected private trip. No GPS path or raw sensor samples are sent. Only your authenticated account can read this telemetry through the API. Server retention is seven days; this action is separate from live convoy sharing.")},confirmButton={TextButton(onClick={upload=null;if(trip!=null)model.upload(recording,trip)}){Text("Upload estimates")}},dismissButton={TextButton(onClick={upload=null}){Text("Keep local")}}) }
     delete?.let { recording -> AlertDialog(onDismissRequest={delete=null},title={Text("Delete local summary?")},text={Text("This removes the saved summary and local event details. An already uploaded copy expires separately on the server after seven days.")},confirmButton={TextButton(onClick={delete=null;model.delete(recording)}){Text("Delete locally")}},dismissButton={TextButton(onClick={delete=null}){Text("Keep summary")}}) }
 }

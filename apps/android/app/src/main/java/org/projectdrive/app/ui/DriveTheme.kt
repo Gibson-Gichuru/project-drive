@@ -1,6 +1,5 @@
 package org.projectdrive.app.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,29 +13,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Day = lightColorScheme(
-    primary=Color(0xFF205744), onPrimary=Color.White,
-    primaryContainer=Color(0xFFDDEBDD), onPrimaryContainer=Color(0xFF163C2F),
-    secondary=Color(0xFF8A492D), onSecondary=Color.White,
-    secondaryContainer=Color(0xFFF7DFC5), onSecondaryContainer=Color(0xFF60341F),
-    tertiary=Color(0xFF426A73), tertiaryContainer=Color(0xFFDCEBEB), onTertiaryContainer=Color(0xFF224B52),
-    background=Color(0xFFF5F3EA), onBackground=Color(0xFF20372F),
-    surface=Color(0xFFFFFDF6), onSurface=Color(0xFF20372F),
-    surfaceVariant=Color(0xFFEAEDE2), onSurfaceVariant=Color(0xFF55645B),
-    outline=Color(0xFF78867C), outlineVariant=Color(0xFFD9DFD3),
-    error=Color(0xFFA43D31), errorContainer=Color(0xFFFBE4DC), onErrorContainer=Color(0xFF6E271F),
-)
-private val Night = darkColorScheme(
-    primary=Color(0xFFA3D7B6), onPrimary=Color(0xFF103A2B),
-    primaryContainer=Color(0xFF244D3C), onPrimaryContainer=Color(0xFFD3EED8),
-    secondary=Color(0xFFF1BA8C), onSecondary=Color(0xFF472C19),
-    secondaryContainer=Color(0xFF553D2C), onSecondaryContainer=Color(0xFFF9DFC3),
-    tertiary=Color(0xFFA2CDD2), tertiaryContainer=Color(0xFF2D4D53), onTertiaryContainer=Color(0xFFD2EDF1),
-    background=Color(0xFF101D18), onBackground=Color(0xFFE2E9DE),
-    surface=Color(0xFF192820), onSurface=Color(0xFFE2E9DE),
-    surfaceVariant=Color(0xFF2B3B31), onSurfaceVariant=Color(0xFFBAC9BD),
-    outline=Color(0xFF8D9E92), outlineVariant=Color(0xFF3B4C40),
-    error=Color(0xFFFFB4A4), errorContainer=Color(0xFF633329), onErrorContainer=Color(0xFFFFDAD1),
+// Charcoal map controls stay dark over both the day and night map canvases.
+private val Chrome = darkColorScheme(
+    primary=Color(0xFFF6F7F8), onPrimary=Color(0xFF202224),
+    primaryContainer=Color(0xFF414548), onPrimaryContainer=Color(0xFFF6F7F8),
+    secondary=Color(0xFF9FE5BA), onSecondary=Color(0xFF182C20),
+    secondaryContainer=Color(0xFF304B3C), onSecondaryContainer=Color(0xFFC5F5D5),
+    tertiary=Color(0xFFA8C7FA), tertiaryContainer=Color(0xFF30425D), onTertiaryContainer=Color(0xFFD3E3FF),
+    background=Color(0xFF1B1D1F), onBackground=Color(0xFFF6F7F8),
+    surface=Color(0xFF242628), onSurface=Color(0xFFF6F7F8),
+    surfaceVariant=Color(0xFF44484B), onSurfaceVariant=Color(0xFFBEC4C8),
+    outline=Color(0xFF8D959B), outlineVariant=Color(0xFF454A4E),
+    error=Color(0xFFFFB4AB), onError=Color(0xFF690005),
+    errorContainer=Color(0xFF63302C), onErrorContainer=Color(0xFFFFDAD6),
 )
 private val Poppins=FontFamily(
     Font(R.font.poppins_regular,FontWeight.Normal),
@@ -63,7 +52,7 @@ private val DriveTypography=Typography(
 )
 @Composable
 fun DriveTheme(content: @Composable ()->Unit) {
-    val colors=if(isSystemInDarkTheme()) Night else Day
+    val colors=Chrome
     MaterialTheme(colorScheme=colors,typography=DriveTypography,
         shapes=Shapes(small=RoundedCornerShape(12.dp),medium=RoundedCornerShape(18.dp),large=RoundedCornerShape(24.dp),extraLarge=RoundedCornerShape(30.dp))) {
         CompositionLocalProvider(LocalContentColor provides colors.onBackground,content=content)

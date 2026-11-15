@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
+import org.projectdrive.app.R
 import androidx.compose.runtime.saveable.rememberSaveable
 import org.projectdrive.app.ui.*
 import androidx.compose.ui.Modifier
@@ -97,7 +99,7 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
     }
     if (confirmShare) AlertDialog(
         onDismissRequest = { confirmShare = false }, title = { Text("Share with this convoy?") },
-        text = { Text("While Project Drive is visible, your real GPS position, accuracy and timestamp go to this trip’s sharing members through your server. They are held in server memory for up to 30 seconds. Stop sharing or leave the app to stop publishing. Reopening the app never resumes sharing automatically.") },
+        text = { Text("While ${stringResource(R.string.app_name)} is visible, your real GPS position, accuracy and timestamp go to this trip’s sharing members through your server. They are held in server memory for up to 30 seconds. Stop sharing or leave the app to stop publishing. Reopening the app never resumes sharing automatically.") },
         confirmButton = { TextButton(onClick = { confirmShare = false; model.startSharing() }) { Text("Enable sharing") } },
         dismissButton = { TextButton(onClick = { confirmShare = false }) { Text("Keep sharing off") } },
     )

@@ -49,7 +49,7 @@ def wait_text(text, prefix=False, timeout=25):
     deadline = time.monotonic()+timeout
     while time.monotonic() < deadline:
         for node in nodes():
-            value = node.get('text', '')
+            value = node.get('text', '') or node.get('content-desc', '')
             if value == text or prefix and value.startswith(text):
                 return node
         time.sleep(.3)
@@ -105,7 +105,7 @@ try:
     check_screen_awake(False)
     passed('fresh process defaults to location off; attribution visible; ordinary screen timeout retained')
     tap('Navigation')
-    def select_named_place(placeholder, query):
+    def select_named_place(placeholder, query, result_kind):
         tap(placeholder)
         field = next(n for n in nodes() if n.get('class') == 'android.widget.EditText')
         bounds = [int(x) for x in re.findall(r'\d+', field.get('bounds', ''))]
@@ -115,18 +115,19 @@ try:
         tap('Search places / open link')
         deadline=time.monotonic()+25
         while time.monotonic()<deadline:
-            matches=[n for n in nodes() if n.get('text')==query]
+            # The query itself is also an EditText; select the result's kind row.
+            matches=[n for n in nodes() if n.get('text')==result_kind]
             if matches:
-                tap(query)
+                tap(result_kind)
                 return
             shell('input','swipe','500','1900','500','1000','300')
             time.sleep(.3)
         raise AssertionError('Public place fixture missing from regional search')
-    select_named_place('Choose a start', 'Nairobi')
-    select_named_place('Where to?', 'Nairobi West')
+    select_named_place('Choose a start', 'Nairobi', 'city · Kenya')
+    select_named_place('Where to?', 'Nairobi West', 'suburb · Kenya')
     tap('Navigation')
     tap('Preview route')
-    wait_text('Your route is ready')
+    wait_text('Route details')
     tap('Navigation')
     wait_text('Start guidance')
     passed('public sample route loads through self-hosted gateway')
@@ -152,7 +153,7 @@ try:
     run('reverse', 'tcp:18081', 'tcp:18081')
     tap('Navigation')
     tap('Preview route')
-    wait_text('Your route is ready')
+    wait_text('Route details')
     tap('Navigation')
     wait_text('Start guidance')
     passed('route calculation recovers when private connection returns')

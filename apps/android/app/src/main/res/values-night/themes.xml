@@ -1,8 +1,8 @@
 <resources>
     <style name="Theme.ProjectDrive" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#A3D7B6</item>
-        <item name="android:windowBackground">#101D18</item>
+        <item name="android:colorAccent">#A8C7FA</item>
+        <item name="android:windowBackground">#1B2024</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

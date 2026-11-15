@@ -5,7 +5,9 @@
     <application
         android:name=".DriveApplication"
         android:allowBackup="false"
-        android:label="Project Drive"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_outset"
+        android:roundIcon="@mipmap/ic_outset"
         android:supportsRtl="true"
         android:theme="@style/Theme.ProjectDrive">
         <activity
