@@ -71,9 +71,11 @@ creates private ephemeral test keys, runs Auth/PostGIS plus non-relaying Mailpit
 and removes its containers and credential file on exit. It runs in CI too.
 Do not point these synthetic tests at a production service.
 
-Before first homelab reconciliation, an authorized operator runs:
+Before first homelab reconciliation, an authorized operator runs the node logging
+bootstrap (using the existing SSH/sudo aliases), then the database bootstrap:
 
 ```
+python3 scripts/bootstrap-smtp-logging.py
 python3 scripts/bootstrap-auth-homelab.py --kubeconfig /path/to/authorized-operator.yaml
 ```
 
@@ -132,3 +134,33 @@ Chris Banes wrapper, always as standalone commands. Questions/results:
 
 The managed workflow was finished successfully; its wrapper-owned logs were
 removed by `finish`. No other build or owner logs were removed.
+
+### Initial live delivery — 15 November 2026
+
+Source `9cf76f68bb9fd276e5e80ee6a27f1c63fe69b5fc` passed
+[CI 43722925729](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43722925729)
+and [delivery 43723702736](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43723702736).
+Flux applied `homelab-deploy@sha1:19733452b5d6b9cd26aa9d930a27747f76c3618b`;
+all five deployments became Ready, including Auth and SMTP. DB/maps retained
+the same PVC identities; the new 1 GiB mail queue is Bound. Public Auth config,
+nonexistent-account refusal, email gate, private REST refusal and hidden admin/
+operational routes passed. Five fixed routes, vector tile and glyph checks passed.
+No production account or external email was created by these probes.
+
+A node's existing enforcing rsyslog AppArmor profile attached inside the mail
+container and refused the generated `/tmp/rsyslog.conf`. Merely choosing another
+container profile did not avoid that host attachment; the disposable profile and
+probe were removed. `bootstrap-smtp-logging.py` now adds only the pinned image's
+config/anonymizer/interpreter/stdout paths through the existing local include on
+all three nodes. The host profile remains enforcing; no kernel setting, global
+profile disable, RBAC or workload capability change was made. Original local
+includes are preserved under `/var/backups/outset-mail-profile-20261115` on each
+node. To undo, remove only the owned include line and `local/rsyslog-outset`, then
+reload the existing profile; preserve subsequent unrelated local changes.
+A synthetic syslog address was masked by the running anonymizer. No email was
+sent. A follow-up adds an SMTP startup probe for the DKIM worker's cold startup.
+
+Private pre-release preservation material is at
+`~/.local/state/project-drive/backups/auth-pre-release-20261115T141137Z` (0700/0600):
+application/Auth PostgreSQL archives, roles, three exact Secrets and storage
+metadata. Both `pg_restore --list` catalog checks passed. A restore was not run.

@@ -1,0 +1,15 @@
+# Additional container paths for Outset's pinned Postfix image. Include from
+# local/usr.sbin.rsyslogd; keep the host's rsyslog profile enforcing.
+/tmp/rsyslog.conf r,
+/etc/rsyslog.d-before/ r,
+/etc/rsyslog.d-before/** r,
+/etc/rsyslog.d-metrics/ r,
+/etc/rsyslog.d-metrics/** r,
+/scripts/email-anonymizer.sh rix,
+/scripts/email-anonymizer.py r,
+/usr/bin/{env,bash,python3,python3.*,dirname,sleep} rix,
+/usr/lib/python3*/** mr,
+/usr/local/lib/python3*/** mr,
+/dev/stdout w,
+/dev/stderr w,
+/proc/*/fd/{1,2} w,
