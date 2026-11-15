@@ -29,6 +29,9 @@ The native provider adapter attempts GPS and network registrations independently
 so one provider's permission restriction does not prevent the other registering.
 Existing freshness/quality gates remain. Location-subscription effects depend on
 both map and recording state, avoiding an initial composition stopping startup GPS.
+Approximate fixes can arrive more slowly; an old cached fix is not relabelled as
+fresh to hide that delay. The waiting state remains until a usable provider fix
+arrives. Current-location tiles still depend on the existing regional basemap.
 
 ## Verification
 
@@ -57,14 +60,22 @@ An additional coarse-only emulator run timed out waiting for a fresh fix; its
 network provider was disabled. After reboot, fresh-fix centering passed that
 stage, but a System UI ANR dialog intercepted the gesture check. These two
 invocations failed; they are not counted as successful acceptance runs. A clean
-emulator repeat is recorded below when available. Uncertainty-aware zoom has
-independent JVM coverage. Android documents that providers obfuscate fixes for
+read-only emulator with 4 GiB RAM then passed the complete test with coarse
+permission only, including centering, pan, Recenter and foreground reacquisition
+(1 test, 15.172 seconds). Fine permission was not granted for this repeat.
+There were **21 distinct successful native emulator checks**, with this additional
+coarse-only repeat and one actual-location check on the physical phone.
+Uncertainty-aware zoom also has independent JVM coverage. Android documents that providers obfuscate fixes for
 coarse permission: [LocationManager reference](https://developer.android.com/reference/android/location/LocationManager).
 
 Native tests are opt-in and do not mutate production journal records. The owner
 APK was replaced with `adb install -r`, preserving its package and data. This
 stationary proof does not close the remaining navigation, convoy, battery or
 telemetry-event field gates.
+
+The final current-location layout was inspected with a public Nakuru emulator
+fixture. Its capture is outside Git at `artifacts/outset/current-location.png`;
+it is not an owner-location screenshot.
 
 Example focused invocation after installing both debug APKs:
 
@@ -98,3 +109,19 @@ Finish removed only wrapper-owned build logs; APKs and owner data were retained.
 No new dependency, backend contract, database migration, public route or paid
 service is introduced. Recovery is a source revert/rebuild/install of the same
 Android package; preserve local data and the earlier telemetry correction.
+
+## Delivery
+
+Source commit: `7964d88d1a7103a8e8e1fcf6be46d6c9fa34f4a7`.
+[GitHub CI](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43701183067)
+passed. The existing [homelab release](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43701641521)
+promotes the same source through its immutable image and GitOps branch.
+
+Release succeeded. Flux reported Ready=True at
+`homelab-deploy@sha1:c9d8e33cd0e73f916e4a4aaf39bd2e1951e1347d`; the API
+rolled out at source tag `7964d88d1a7103a8e8e1fcf6be46d6c9fa34f4a7` with
+1/1 ready replicas, a ready Service endpoint, and HTTP 200 for a public map tile.
+The existing 5 GiB database and 10 GiB map PVCs remained Bound. Routine deployment
+and storage reads used `homelab-deployer`; Flux and EndpointSlice reads used the
+existing authorized operator context after the restricted identity lacked those
+read capabilities. No RBAC, credentials, storage or Cloudflare changes were made.
