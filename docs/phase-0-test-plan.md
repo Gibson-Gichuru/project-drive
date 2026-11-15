@@ -57,3 +57,14 @@ Use `make ci`, the loopback-only `scripts/android-telemetry-check.py`, and the
 opt-in `PublicEndpointTest` described in [M5](milestones/M5.md). The public build
 cannot import local development credentials. A successful unauthenticated 401 is
 not an authenticated public convoy test. Local recording works without sign-in.
+
+## 15 November background-service revision
+
+[M6](milestones/M6.md) is in progress. Explicit active journeys now continue with
+a location foreground service and notification Stop controls; older foreground-only
+background/rotation expectations are historical. See [current behavior and checks](background-journeys.md).
+The [Tigoni solo plan](device-tests/2026-11-15-tigoni.md) uses the public HTTPS origin
+and mobile data, without workstation forwarding. Its actual route, arrival, GPS,
+screen-off journal and battery observations remain pending. The legacy fixed-place
+loopback script requires a test device without location permission and must not be
+used to disable an owner phone’s preferences merely to satisfy a fixture.

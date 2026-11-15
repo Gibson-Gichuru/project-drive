@@ -30,11 +30,13 @@ Future work remains outside these phases until separately prioritized: OBD-II, i
 
 ## Phase 0 milestones
 
-### Current status — 2026-11-13
+### Current status — 2026-11-15
 
 **M0 — Repository and environment: complete.** The local `make ci` gate passes; GitHub Actions passed on `eade557`; the image publication and homelab deployment workflow passed on `493d2e9`; Flux reports its Kustomization ready; the API and PostGIS each have one ready replica; migration `0001_initial` is applied; and both health endpoints have been checked from the workstation. See [the M0 milestone report](milestones/M0.md) for commit references and the remaining boundary of this result. **M2 — Trip domain: complete**, implemented ahead of the M1 field gate at the owner’s explicit request. Local and GitHub CI passed on `e4e46c7`; GitOps deployed it successfully, migration `0002_trip_domain` is applied, the homelab is healthy and rejects development identities. See [M2 evidence](milestones/M2.md). **M3 — Real-time hub: complete.** Local and GitHub CI passed on `e63dd00`; deployment and live health/auth-denial checks passed, and migration `0003_member_removal` is applied. See [M3 evidence](milestones/M3.md). **M1 field testing is deferred at the owner’s request (2026-11-13), and later milestone work is authorized. M1 remains open.** See [the field-test record](device-tests/2026-11-13-M1.md). **M1 is in progress:** the Kenya map/routing stack and Android preview/playback are implemented and undergoing device/homelab verification. Its real-world route-following and coverage gate is still open; see [M1 status](milestones/M1.md).
 
 M4 software and local device validation have passed; GitHub CI and homelab deployment passed on `331c3dc`; the owner authorized emulator participants and deferred the two-real-phone field gate. See [M4 evidence](milestones/M4.md).
+
+**M6 is in progress.** Owner-authorized background journeys and local field diagnostics are installed and deployed; automated/native checks passed. The Tigoni solo journey and remaining physical/performance/operations gates are pending. See [M6 status](milestones/M6.md).
 
 Complete these in order. Each milestone produces a runnable increment and a short status report covering changed files, verification, blockers, and the next step.
 

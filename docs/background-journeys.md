@@ -37,13 +37,15 @@ background and screen-off seconds, battery temperature/thermal/power-save contex
 network transport categories, sensor availability, maximum GPS callback gap and
 speed-quality sample count. It contains no coordinates, SSIDs, device identifiers
 or raw sensor arrays. Sampling is approximately one second, not a laboratory
-power/thermal benchmark. Charging disqualifies a discharge-only battery result.
+power/thermal benchmark. The GPS gap uses provider measurement timestamps and the
+last-fix-to-end interval; it is not a network or server-latency measurement.
+Charging disqualifies a discharge-only battery result.
 These diagnostics stay local and are stripped before the existing telemetry upload
 contract. Existing record schema, migrations, seven-day retention and event bounds
 are unchanged. Old summaries do not acquire fabricated test data.
 
 The application update uses `adb install -r`. Three owner summaries were privately
-fingerprinted before installation for a read-only preservation check. Personal
+fingerprinted before installation; read-only post-installation comparison confirmed all three unchanged. Personal
 record content and task-owned diagnostic database copies stay outside Git.
 The [Tigoni plan](device-tests/2026-11-15-tigoni.md) is prepared, not a field result.
 
@@ -51,9 +53,15 @@ The [Tigoni plan](device-tests/2026-11-15-tigoni.md) is prepared, not a field re
 
 Debug app/test APKs, 40 JVM tests and Android lint passed. Initial compiler warnings
 about qualifier annotation targets were resolved with explicit `@param:` targets.
-A native emulator test passed background recording, rotation, normal save, notification
-Stop and removal of its own stationary test record. Final native screen-off,
-guidance, denial and process-termination checks are recorded in the delivery addendum.
+The final emulator APK passed **23 distinct native checks**: 19 UI/camera/input,
+permission, Room/sensor, convoy safety and public HTTPS checks; plus four background
+checks for recording/rotation/notification Stop, guidance through Activity destruction
+and replacement, notification denial, and process-termination recovery. The recording
+test also passed a separate real emulator screen-off interval, with retained screen-off
+seconds asserted. A host deliberately terminated an armed background session after
+its checkpoint; recovery retained an interrupted record and left the service/recording
+off. Task-created test records were removed by ID; original records were retained.
+The arming invocation was intentionally terminated, not counted as a passed test.
 No test uses injected coordinates on the physical phone. Software participants
 and fixed public positions are emulator-only. Historical M4/M5 foreground-only
 lifecycle reports describe the previous behavior and are superseded by this design.
@@ -81,6 +89,29 @@ Workflow `e1504e12fc6569099d5b4d241acc5f37` used the `gradle_run.py` wrapper aro
 - “Do final notification-channel guards, bounded background sessions and screen-off
   test fixtures pass builds, unit tests and lint?” Yes; 40 JVM tests and lint passed.
 
+Workflow finish removed only wrapper-owned build logs.
+
 Recovery: revert/rebuild/install the same Android package. Keep the earlier
 current-location and candidate-detection fixes. No database reset or backend
 migration is required. Do not replace an APK during an actual active journey.
+
+## Delivery addendum
+
+Source: `a99ff775c0cd45f8db98a98c0267c36105d082e1`, pushed to GitHub.
+The public-HTTPS APK was installed over the existing Samsung package with
+`adb install -r` and launched successfully. St. Paul’s University, Limuru was sent
+as the selected public destination; its private origin and route metrics are not
+recorded here. The owner must choose My location and preview/inspect the route
+while parked, and allow notifications at the first active journey start.
+No real journey, physical screen-off recording, authenticated public convoy or
+arrival result is claimed by this installation.
+
+[CI](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43704989699) and
+[deployment](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43705440408)
+succeeded. The API is ready 1/1 at the source image tag; Flux is Ready=True at
+`homelab-deploy@sha1:508f8b42f8e52e287a494ede9f65caf07ca1dbae`. A public map tile
+returned HTTP 200. Existing 5 GiB database and 10 GiB map PVCs remain Bound. Routine
+namespace reads used the existing deployer identity; Flux readiness used the existing
+authorized operator context. No Kubernetes, Cloudflare, credential, RBAC or backend
+contract changes were needed. Private task-created phone database copies were
+removed after the unchanged-original-record comparison; the owner's originals remain.
