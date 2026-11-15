@@ -27,6 +27,7 @@ data class JourneyStatus(val guidance:Boolean=false,val recording:Boolean=false,
 class JourneyRuntime @Inject constructor(
     @param:ApplicationContext private val context:Context,
     private val navigation:NavigationSession,private val telemetry:TelemetryRecorder,private val convoy:ConvoySession,
+    private val carConnection:org.projectdrive.app.core.car.CarConnectionMonitor,
 ) {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     private val visible=MutableStateFlow(false)
@@ -105,6 +106,7 @@ class JourneyRuntime @Inject constructor(
         syncLocation()
     }
     private fun syncLocation() {
+        carConnection.setMonitoring(visible.value||running.value)
         val active=navigation.state.value.guiding||telemetry.state.value.recording||telemetry.state.value.starting||convoy.state.value.sharing
         val wanted=hasLocationPermission()&&((visible.value&&navigation.state.value.gpsWanted)||(running.value&&active))
         if(wanted&&!listening){listening=true;location.start()}

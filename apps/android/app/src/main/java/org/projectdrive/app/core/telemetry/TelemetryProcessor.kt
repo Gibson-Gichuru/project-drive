@@ -17,7 +17,7 @@ data class TelemetrySummary(
     val acceleration: Int, val braking: Int, val lateral: Int, val droppedEvents: Int,
     val interrupted: Boolean, val orientation: String, val confidence: Double,
 )
-data class TelemetryResult(val summary: TelemetrySummary, val events: List<CandidateEvent>)
+data class TelemetryResult(val summary: TelemetrySummary, val events: List<CandidateEvent>, val speedBuckets:List<SpeedBucket> = emptyList())
 
 /** Pure on-device estimator. The last GPS fix and a two-second/120-entry sensor
  * ring live only in RAM. No path, raw sensor array or coordinate is serialized. */
@@ -36,6 +36,7 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
     private var accuracyTotal = 0.0
     private var speedCount = 0; private var speedTotal = 0.0; private var maxSpeed = 0.0
     private var distance = 0.0; private var covered = 0.0
+    private val speedHistory=SpeedHistory()
     fun onMotion(sample: MotionSample, now: Long) {
         if (sample.kind !in setOf("accelerometer", "rotation", "linear_acceleration") || !sample.x.isFinite() || !sample.y.isFinite() || !sample.z.isFinite() || sample.elapsedMillis < startedElapsed || now - sample.elapsedMillis !in 0..1000) return
         val previous = lastMotion[sample.kind]
@@ -51,7 +52,10 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
         lastSeenFix = fix.elapsedRealtimeMillis
         if (!fix.isFresh(now) || !fix.accuracyMeters.isFinite() || fix.accuracyMeters <= 0 || fix.accuracyMeters > 50) { rejected++; lastFix = null; resetEvidence(); return }
         gps++; accuracyTotal += fix.accuracyMeters
-        if (validSpeed(fix, 3.0)) { val speed = checkNotNull(fix.speedMps).toDouble(); speedCount++; speedTotal += speed; maxSpeed = max(maxSpeed, speed) }
+        if (validSpeed(fix, 3.0)) {
+            val speed = checkNotNull(fix.speedMps).toDouble(); speedCount++; speedTotal += speed; maxSpeed = max(maxSpeed, speed)
+            speedHistory.add(fix.elapsedRealtimeMillis-startedElapsed,speed)
+        }
         val previous = lastFix; lastFix = fix
         if (previous == null) return
         val dt = (fix.elapsedRealtimeMillis - previous.elapsedRealtimeMillis) / 1000.0
@@ -109,7 +113,7 @@ class TelemetryProcessor(private val startedElapsed: Long, private val startedUT
         return TelemetryResult(TelemetrySummary(startedUTC, startedUTC + elapsed, elapsed / 1000.0, covered.coerceAtMost(elapsed / 1000.0), distance,
             if (speedCount > 0) speedTotal / speedCount else 0.0, maxSpeed, speedCount, gps, rejected, if (gps > 0) accuracyTotal / gps else 0.0,
             imu, rotation, acceleration, braking, lateral, acceleration + braking + lateral - acceptedEvents.size, interrupted,
-            if (rotation > 0) "available" else "unavailable", if (speedCount > 0) 0.35 else 0.0), acceptedEvents)
+            if (rotation > 0) "available" else "unavailable", if (speedCount > 0) 0.35 else 0.0), acceptedEvents,speedHistory.snapshot())
     }
     fun expireRaw(now: Long) {
         while (rawMotion.isNotEmpty() && rawMotion.first().elapsedMillis < now - 2000) rawMotion.removeFirst()

@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import org.projectdrive.app.core.car.CarConnectionState
 import org.projectdrive.app.NavigationState
 import org.projectdrive.app.NavigationViewModel
 import org.projectdrive.app.feature.convoy.*
@@ -52,6 +53,7 @@ fun DriveScreen(
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
     useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, startGuidance:()->Unit, startSharing:()->Unit, importSession:()->Unit,
 ) {
+    val carConnection by telemetry.carConnection.collectAsState()
     var focusedRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(state.focusRequest) {
         if(state.focusRequest>0 && focusedRequest!=state.focusRequest) {
@@ -67,13 +69,13 @@ fun DriveScreen(
             if(state.playback)null else state.fix?.accuracyMeters)
     }
     DriveContent(
-        state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,
+        state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,carConnection=carConnection,
         recenter={if(state.route==null&&!state.gpsWanted&&!state.playback)locateMap() else renderer.recenter()}, stopGuidance=model::stopGuidance, finishRecording=finishRecording,
         stopSharing={convoy.stopSharing()},
         mapContent={ modifier -> AndroidView(factory={renderer.view},modifier=modifier) },
         navigationContent={ backToMap -> NavigationPanel(state,model,recording.recording,useLocation,stopLocation,startGuidance,backToMap) },
         convoyContent={ ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession,startSharing) },
-        telemetryContent={ TelemetryPanel(recording,telemetry,group.trip,state.playback,startRecording,finishRecording) },
+        telemetryContent={ TelemetryPanel(recording,telemetry,group.trip,state.playback,startRecording,finishRecording,carConnection) },
     )
 }
 
@@ -87,6 +89,7 @@ fun DriveContent(
     navigationContent:@Composable ColumnScope.(backToMap:()->Unit)->Unit,
     convoyContent:@Composable ColumnScope.()->Unit,
     telemetryContent:@Composable ColumnScope.()->Unit,
+    carConnection:CarConnectionState=CarConnectionState.Checking,
     modifier:Modifier=Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(DriveTab.Navigation) }
@@ -112,6 +115,7 @@ fun DriveContent(
                 MapAction(DriveSymbol.Back,"Navigation",{openTools(DriveTab.Navigation)})
                 MapAction(DriveSymbol.More,"More tools",{toolsOpen=true})
             }
+            if(carConnection==CarConnectionState.AndroidAuto||carConnection==CarConnectionState.Automotive) StatusNote(carConnection.label,active=true)
             if(state.loading) Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface) {
                 Column(Modifier.widthIn(max=360.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                     Text("Finding your route…",style=MaterialTheme.typography.bodySmall)

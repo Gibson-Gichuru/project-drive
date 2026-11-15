@@ -48,7 +48,7 @@ android {
         buildConfig = true
     }
 
-    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
+    sourceSets["androidTest"].assets.directories.add("$projectDir/schemas")
 
     testOptions { unitTests.isReturnDefaultValues = true }
 }
@@ -58,6 +58,9 @@ dependencyLocking { lockAllConfigurations() }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 dependencies {
+    constraints {
+        implementation(libs.guava.android) { because("Use the maintained Android variant instead of Car App's legacy transitive Guava 31.1") }
+    }
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.room.runtime)
@@ -73,8 +76,10 @@ dependencies {
     testImplementation(libs.junit)
     implementation(libs.maplibre)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.car.app)
     implementation(libs.coroutines.android)
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

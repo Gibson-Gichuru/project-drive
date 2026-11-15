@@ -7,6 +7,11 @@ continues while remaining physical checks are grouped into [one field session](d
 Use [the desktop validation/demo runbook](docs/m6-desktop-validation.md) for the
 repeatable PostGIS/WebSocket latency baseline and security/operations evidence.
 
+The [journey report and car-connection update](docs/trip-reports-and-car-connection.md)
+adds a dedicated report, bounded local speed charts for new recordings and advisory
+Android Auto connection status. Existing trips retain their original data; no GPS
+route history is stored and car connection never starts capture automatically.
+
 **M0, M2 and M3 are complete. M4 — Android convoy is implemented, verified with one physical phone and two emulators, and deployed; its two-real-phone field gate is deferred. The owner reports normal navigation with no wrong turns on the Tigoni journey; M1 final arrival/road-access acceptance remains open.** The app now renders the self-hosted Kenya basemap and previews routes; the remaining real-world acceptance checks are recorded in the field review. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
 
 The Android UI uses the owner-selected reference direction: a full-screen pale map, charcoal floating controls and a compact journey card. Poppins is bundled locally. See [Outset design and verification](docs/outset-design.md). Existing package IDs, repository, API routes and local data remain compatible.

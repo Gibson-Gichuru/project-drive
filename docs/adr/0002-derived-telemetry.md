@@ -73,6 +73,13 @@ per minute while the telemetry ViewModel is alive; when the app is not running,
 physical cleanup occurs on its next startup. Android backup remains disabled.
 Raw ring contents are evicted after two seconds and released when capture stops.
 
+Owner-requested report revision, 15 November: new recordings retain a bounded
+local-only chart of ten-second speed means/peaks/counts, at most 1,440 buckets.
+These derived aggregates expire with summaries after seven days; no coordinates,
+raw speed series or raw sensor arrays are retained. Both `local_report` and local
+field diagnostics are stripped before upload. Old summaries remain unchanged,
+with no fabricated history. See [report design and car connection](../trip-reports-and-car-connection.md).
+
 Manual upload is separate and requires an authenticated active trip member and
 an active or completed trip. Bind the final recording to trip+identity before
 network transmission; uncertain retries cannot move it to another trip/account.
@@ -97,7 +104,8 @@ are existing open-source dependencies.
 
 This supplies useful local summaries without retaining a raw journey or needing
 network connectivity. It cannot produce a personal heatmap, validated unsafe-
-driving conclusions, background recording or fused/calibrated telemetry. Real
+driving conclusions or fused/calibrated telemetry. Explicit background journeys
+were separately added as described above. Real
 journey accuracy and power consumption must be measured before those claims.
 
 Pure estimator tests exercise jitter, jumps, quality, missing sensors, candidate

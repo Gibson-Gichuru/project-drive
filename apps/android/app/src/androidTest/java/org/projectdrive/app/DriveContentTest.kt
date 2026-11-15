@@ -51,6 +51,7 @@ class DriveContentTest {
     private fun show(
         scenario:ActivityScenario<ComponentActivity>,state:NavigationState=NavigationState(),
         recording:Boolean=false,sharing:Boolean=false,
+        carConnection:org.projectdrive.app.core.car.CarConnectionState=org.projectdrive.app.core.car.CarConnectionState.Checking,
         recenter:()->Unit={},finish:()->Unit={},stop:()->Unit={},
     ) {
         scenario.onActivity{activity->
@@ -59,7 +60,7 @@ class DriveContentTest {
                 DriveContent(state,false,recording,sharing,recenter,{},finish,stop,
                     mapContent={Box(it.semantics{contentDescription="Map canvas"})},
                     navigationContent={back->Text("Route planner fixture");Button(onClick=back){Text("Close planner")}},
-                    convoyContent={Text("Convoy fixture")},telemetryContent={Text("Journal fixture")})
+                    convoyContent={Text("Convoy fixture")},telemetryContent={Text("Journal fixture")},carConnection=carConnection)
             }}
         }
     }
@@ -86,6 +87,15 @@ class DriveContentTest {
             await("Route planner fixture");tap("Close planner");await("Map canvas")
             assertTrue(matching("Finish recording").isEmpty())
             assertTrue(matching("Stop sharing now").isEmpty())
+        }
+    }
+    @Test fun androidAutoBadgeIsAdvisoryAndDoesNotStartJourneyModes() {
+        ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
+            show(scenario,carConnection=org.projectdrive.app.core.car.CarConnectionState.AndroidAuto)
+            await("Android Auto connected")
+            assertTrue(matching("Finish recording").isEmpty())
+            assertTrue(matching("Stop sharing now").isEmpty())
+            assertTrue(matching("Your next adventure").isNotEmpty())
         }
     }
 }

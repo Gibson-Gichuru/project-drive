@@ -108,7 +108,7 @@ class TelemetryRecorder @Inject constructor(
             try {
                 val session=withContext(Dispatchers.IO){vault.load()}?:error("Session unavailable")
                 val bound=store.bind(recording.id,trip.id,session.userId)
-                val summary=JSONObject(bound.summaryJSON).apply { remove("field_test") }
+                val summary=telemetryUploadSummary(bound.summaryJSON)
                 val body=JSONObject().put("version",1).put("recording_id",bound.id).put("summary",summary).put("events",JSONArray(bound.eventsJSON))
                 api.request(session,"POST","/v1/trips/${trip.id}/telemetry",body)
                 store.acknowledge(bound.id)
@@ -131,6 +131,7 @@ class TelemetryRecorder @Inject constructor(
     private suspend fun refreshRecords(){persistence.withLock{val records=store.list();mutable.update { it.copy(recordings=records) }}}
     private fun local(recordingId: String,result: TelemetryResult,active: Boolean):LocalRecording {
         val summary=result.summary.toJSON()
+        summary.put("local_report",result.localReportJSON())
         diagnostics?.let {summary.put("field_test",it.json(SystemClock.elapsedRealtime(),visible,mutable.value.sensors))}
         return LocalRecording(recordingId,summary.toString(),result.eventsJSON().toString(),active,result.summary.endedAtMillis+LOCAL_RETENTION_MILLIS,result.summary.endedAtMillis+UPLOAD_WINDOW_MILLIS)
     }

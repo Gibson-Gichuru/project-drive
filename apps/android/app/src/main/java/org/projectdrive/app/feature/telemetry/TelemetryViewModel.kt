@@ -9,8 +9,9 @@ import org.projectdrive.app.core.convoy.Trip
 import org.projectdrive.app.core.telemetry.LocalRecording
 
 @HiltViewModel
-class TelemetryViewModel @Inject constructor(private val recorder:TelemetryRecorder,private val runtime:JourneyRuntime):ViewModel() {
+class TelemetryViewModel @Inject constructor(private val recorder:TelemetryRecorder,private val runtime:JourneyRuntime,carConnection:org.projectdrive.app.core.car.CarConnectionMonitor):ViewModel() {
     val state get()=recorder.state
+    val carConnection=carConnection.state
     fun resume()=recorder.resume()
     fun start()=runtime.start(JourneyAction.RECORD)
     fun onFix(fix:LocationFix)=recorder.onFix(fix)
