@@ -85,7 +85,15 @@ and the established
 [deployment workflow](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43696923590).
 The homelab API was subsequently verified Ready on that immutable image tag.
 
-## Remaining field gate
+## Field follow-up
+
+The later [Tigoni data review](2026-11-15-tigoni.md) found two normally completed
+new recordings with retained acceleration/braking candidates and matching derived
+details. Real-drive capture and event persistence are now verified after the fix.
+This does not validate calibrated sensitivity or false-positive rates. Original
+recordings were not rewritten, and personal measurements remain outside Git.
+
+The following describes the earlier state before that follow-up:
 
 Existing summaries keep their original counts; missed historical events cannot
 be reconstructed. Repeat an ordinary journey using the updated app, mounted

@@ -1,6 +1,6 @@
 # Phase 0 validation plan
 
-This is an acceptance record template, not a statement that tests have passed. M0/M2/M3 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 software/device validation passed with one physical phone and two emulators; its two-real-phone field gate is deferred. M1 remains an open field-test checklist item. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
+This is an acceptance record template, not a statement that tests have passed. M0/M2/M3 are complete. The owner explicitly deferred M1’s real journey and authorized M3; M3’s software gate has since passed; M4 software/device validation passed with one physical phone and two emulators; its two-real-phone field gate is deferred. The later [Tigoni review](device-tests/2026-11-15-tigoni.md) supplies owner-reported navigation with no wrong turns and completed physical telemetry with saved acceleration/braking candidates. M1 final arrival/road checks, physical screen-off, two-real-phone and full M6 acceptance remain open. Historical checklist entries below must be read with that follow-up. Existing evidence is in `docs/milestones/` and `docs/device-tests/`.
 
 ## Reproducible checks
 
@@ -16,9 +16,10 @@ scripts/android-navigation-check.py --serial "$ANDROID_SERIAL"
 
 It explicitly selects public Nairobi fixture names through search and restarts the app with location off, so run it **before** preparing a personal journey. It checks actual window flags, cached-route playback, disconnection/recovery and lifecycle state; it restores rotation and the server reverse. It does not inject mock GPS, verify a real journey, or create an offline map pack.
 
-## M1 field acceptance — deferred, still required
+## M1 field acceptance — final review still required
 
-- [ ] Physical GPS journey, road/instruction/restriction review, arrival and final mapping ADR acceptance. The owner confirmed “not travelled yet” and authorized M3 on 2026-11-13.
+- [x] Physical journey reported on 15 November: navigation worked as expected with no wrong turns; saved GPS/IMU summaries reviewed.
+- [ ] Explicit arrival, specific road/access review and final mapping ADR acceptance. The earlier 13 November deferral is superseded by the journey report, not by full gate acceptance.
 
 1. While parked, choose a short, known drivable route in the target Kenyan area and verify the origin is on the intended surface road. Elevated roads, access restrictions and one-way routing need explicit review.
 2. Establish the private server connection; verify a fresh location with suitable accuracy, then preview the route. Record data revision, device/OS, route names, network arrangement and start conditions, without recording a private position trail.
@@ -63,8 +64,9 @@ not an authenticated public convoy test. Local recording works without sign-in.
 [M6](milestones/M6.md) is in progress. Explicit active journeys now continue with
 a location foreground service and notification Stop controls; older foreground-only
 background/rotation expectations are historical. See [current behavior and checks](background-journeys.md).
-The [Tigoni solo plan](device-tests/2026-11-15-tigoni.md) uses the public HTTPS origin
-and mobile data, without workstation forwarding. Its actual route, arrival, GPS,
-screen-off journal and battery observations remain pending. The legacy fixed-place
+The [Tigoni review](device-tests/2026-11-15-tigoni.md) records successful owner-reported
+navigation and completed GPS/IMU recording with saved longitudinal candidates.
+Local battery and mobile-network context were reviewed; arrival, physical
+screen-off and representative two-device battery checks remain open. The legacy fixed-place
 loopback script requires a test device without location permission and must not be
 used to disable an owner phone’s preferences merely to satisfy a fixture.

@@ -2,7 +2,7 @@
 
 Outset (formerly Project Drive) is an Android-first, open-source navigation and private convoy app. It is built around OpenStreetMap data, a provider-neutral navigation interface, and self-hosted services. No paid maps, hosted identity provider, proprietary location SDK, or metered API is required. Map rendering, regional OSM data, routing and geocoding are selected and evaluated in M1; the public OSM demo services are not a production dependency.
 
-**M0, M2 and M3 are complete. M4 — Android convoy is implemented, verified with one physical phone and two emulators, and deployed; its two-real-phone field gate is deferred. M1’s physical journey remains deferred.** The app now renders the self-hosted Kenya basemap and previews routes; the real-world GPS route gate remains open. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
+**M0, M2 and M3 are complete. M4 — Android convoy is implemented, verified with one physical phone and two emulators, and deployed; its two-real-phone field gate is deferred. The owner reports normal navigation with no wrong turns on the Tigoni journey; M1 final arrival/road-access acceptance remains open.** The app now renders the self-hosted Kenya basemap and previews routes; the remaining real-world acceptance checks are recorded in the field review. See [the roadmap](docs/ROADMAP.md), [M1 status](docs/milestones/M1.md), and [navigation evaluation](docs/navigation-evaluation.md).
 
 The Android UI uses the owner-selected reference direction: a full-screen pale map, charcoal floating controls and a compact journey card. Poppins is bundled locally. See [Outset design and verification](docs/outset-design.md). Existing package IDs, repository, API routes and local data remain compatible.
 
@@ -99,11 +99,11 @@ Trip lifecycle, private membership, hashed invitations and offline local/test id
 
 ## M3 realtime developer API
 
-The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is implemented in [M4](docs/milestones/M4.md), and M1’s actual journey remains a separately deferred field test.
+The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated WebSockets, single-instance bounds, revocation and reconnect semantics. `make integration` includes real WebSocket clients against PostGIS. Live coordinates remain ephemeral; Android convoy UI is implemented in [M4](docs/milestones/M4.md), and M1’s final acceptance remains separate from convoy validation.
 
 ## M5 local telemetry
 
-Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and the remaining physical journey gate. The owner's 14 November journal drive exposed a candidate-detection defect; the [15 November correction](docs/device-tests/2026-11-15-journal-events.md) is installed and awaits another ordinary journey. See [the field checklist](docs/device-tests/2026-11-14-field.md).
+Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and physical journey evidence. The owner's 14 November journal drive exposed a candidate-detection defect; the [15 November correction](docs/device-tests/2026-11-15-journal-events.md) is installed; the [Tigoni data review](docs/device-tests/2026-11-15-tigoni.md) verifies normally completed recordings with retained acceleration/braking candidates. Calibration and full M6 checks remain open. See [the field checklist](docs/device-tests/2026-11-14-field.md).
 
 ## Map-first navigation UI
 

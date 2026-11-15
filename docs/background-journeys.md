@@ -47,7 +47,10 @@ are unchanged. Old summaries do not acquire fabricated test data.
 The application update uses `adb install -r`. Three owner summaries were privately
 fingerprinted before installation; read-only post-installation comparison confirmed all three unchanged. Personal
 record content and task-owned diagnostic database copies stay outside Git.
-The [Tigoni plan](device-tests/2026-11-15-tigoni.md) is prepared, not a field result.
+The later [Tigoni review](device-tests/2026-11-15-tigoni.md) confirms completed
+physical-phone recording and saved acceleration/braking candidates. Only brief
+background exposure and no screen-off duration were recorded; prolonged physical
+background/screen-off operation remains an open field check.
 
 ## Verification and current limits
 
