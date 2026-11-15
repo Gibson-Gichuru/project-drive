@@ -98,22 +98,6 @@ spec:
           value: 'true'
         - name: GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL
           value: '10'
-        - name: GOTRUE_SMTP_HOST
-          value: project-drive-smtp
-        - name: GOTRUE_SMTP_PORT
-          value: '587'
-        - name: GOTRUE_SMTP_ADMIN_EMAIL
-          value: noreply@outset-mail.ripples.boo
-        - name: GOTRUE_SMTP_SENDER_NAME
-          value: Outset
-        - name: GOTRUE_SMTP_MAX_FREQUENCY
-          value: 60s
-        - name: GOTRUE_RATE_LIMIT_EMAIL_SENT
-          value: '20'
-        - name: GOTRUE_MAILER_TEMPLATES_CONFIRMATION
-          value: http://project-drive-api:8080/v1/auth/templates/confirmation
-        - name: GOTRUE_MAILER_TEMPLATES_RECOVERY
-          value: http://project-drive-api:8080/v1/auth/templates/recovery
         - name: GOTRUE_LOG_LEVEL
           value: error
         startupProbe:

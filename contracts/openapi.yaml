@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Project Drive API
   version: 0.8.0
-  description: Outset private convoy API with self-hosted Supabase Auth. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Email registration/recovery are gated on operational SMTP delivery.
+  description: Outset private convoy API with self-hosted Supabase Auth. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Email registration/recovery remain disabled; the owner-selected Google OAuth migration is in progress.
 servers:
 - url: http://localhost:8080
 paths:

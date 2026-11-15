@@ -30,11 +30,12 @@ Future work remains outside these phases until separately prioritized: OBD-II, i
 
 ## Phase 1 authentication — owner authorized 15 November 2026
 
-The owner selected self-hosted **Supabase Auth** and homelab SMTP. The first
-Phase 1 increment is [authentication](milestones/P1-authentication.md): verified
-email sign-in, secure refresh/logout, live session revocation and private
-convoy/telemetry access. Software work proceeds while the remaining Phase 0
-field checks are consolidated on **25 November 2026**. This does not close M6.
+The owner selected **Google sign-in through hosted Supabase Auth** on its Free
+plan and canceled the homelab SMTP service. The first Phase 1 increment is
+[authentication](milestones/P1-authentication.md): provider-owned sign-in, secure
+refresh/logout, live session revocation and private convoy/telemetry access.
+Software work proceeds while remaining Phase 0 field checks are consolidated on
+**25 November 2026**. This does not close M6.
 Community reports and route-aware warnings follow authentication acceptance.
 
 ## Phase 0 milestones
