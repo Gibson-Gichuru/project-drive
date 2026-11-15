@@ -5,6 +5,19 @@ import org.junit.Test
 import org.projectdrive.app.core.navigation.*
 
 class CameraTrackingTest {
+    @Test fun idleUserLocationFollowsUntilPanAndRecenterWithoutARoute() {
+        val camera=CameraTracking();camera.update(null,true);assertTrue(camera.following)
+        camera.gesture();repeat(10){camera.update(null,true);assertFalse(camera.following)}
+        camera.recenter();assertTrue(camera.following)
+    }
+    @Test fun approximateOrUnknownAccuracyDoesNotImplyStreetLevelPrecision() {
+        assertEquals(16.0,currentLocationZoom(5f),0.0)
+        assertTrue(currentLocationZoom(1000f)<12.0)
+        assertTrue(currentLocationZoom(100000f)<6.0)
+        assertTrue(currentLocationZoom(Float.NaN)<16.0)
+        assertTrue(currentLocationZoom(0f)<16.0)
+        assertEquals(16.0,currentLocationZoom(null),0.0)
+    }
     private fun route() = Route(listOf(Coordinate(-1.28,36.82),Coordinate(-1.30,36.83)),1000.0,120.0,listOf(Maneuver("Continue",0,1,1000.0,120.0)))
     @Test fun gesturesRemainFreeAcrossPreviewAndPositionRefreshes() {
         val camera=CameraTracking();val route=route();camera.update(route,false);camera.gesture()

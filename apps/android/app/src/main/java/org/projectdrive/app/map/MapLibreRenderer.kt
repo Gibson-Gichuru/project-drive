@@ -31,17 +31,20 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     private var map: MapLibreMap? = null
     @Suppress("DEPRECATION")
     private val restoredCamera=savedState?.getParcelable<CameraPosition>(MapLibreConstants.STATE_CAMERA_POSITION)
-    private fun regionalCamera()=CameraPosition.Builder().target(LatLng(-1.2921,36.8219)).zoom(12.0).build()
+    // Coverage overview while permission/a fresh fix is unavailable; never a user position.
+    private fun regionalCamera()=CameraPosition.Builder().target(LatLng(0.2,37.9)).zoom(5.5).build()
     private var route: Route? = null
     private var destination: Coordinate? = null
     private var origin: Coordinate? = null
     private var requestedFocus:Coordinate?=null
     private var position: Coordinate? = null
+    private var positionAccuracyMeters:Float?=null
     private var simulated = false
     private var participants = emptyList<Participant>()
     private var now = 0L
     private var fitted: Route? = null
     private var followedPosition: Coordinate? = null
+    private var followedZoom:Double?=null
     private var cameraWasFollowing = false
     private val tracking = CameraTracking(savedState?.getBoolean("drive.camera.exploring") ?: false)
     val exploring get() = tracking.exploring
@@ -98,12 +101,13 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         }
     }
 
-    fun render(route: Route?, destination: Coordinate?, position: Coordinate?, simulated: Boolean, follow: Boolean, participants: List<Participant> = emptyList(), now: Long = 0, origin:Coordinate?=null) {
+    fun render(route: Route?, destination: Coordinate?, position: Coordinate?, simulated: Boolean, follow: Boolean, participants: List<Participant> = emptyList(), now: Long = 0, origin:Coordinate?=null, positionAccuracyMeters:Float?=null) {
         this.origin=origin
         this.participants = participants; this.now = now
         this.route = route
         this.destination = destination
         this.position = position
+        this.positionAccuracyMeters=positionAccuracyMeters
         this.simulated = simulated
         tracking.update(route, follow)
         onExplorationChanged(tracking.exploring)
@@ -150,9 +154,11 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         val currentPosition = position
         if (tracking.following && currentPosition == null && !force) return
         if (tracking.following && currentPosition != null) {
-            if (force || !cameraWasFollowing || followedPosition != currentPosition) {
-                ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentPosition.latitude, currentPosition.longitude), 16.0))
+            val zoom=currentLocationZoom(positionAccuracyMeters)
+            if (force || !cameraWasFollowing || followedPosition != currentPosition || followedZoom!=zoom) {
+                ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentPosition.latitude, currentPosition.longitude), zoom))
                 followedPosition = currentPosition
+                followedZoom=zoom
             }
             cameraWasFollowing = true
         } else {
@@ -172,7 +178,10 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
                 }
                 return
             }
-            if (fallback) ready.moveCamera(CameraUpdateFactory.newLatLngZoom(currentPosition?.let { LatLng(it.latitude, it.longitude) } ?: LatLng(-1.2921, 36.8219), if (currentPosition != null) 16.0 else 12.0))
+            if (fallback) {
+                if(currentPosition!=null)ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(currentPosition.latitude,currentPosition.longitude),currentLocationZoom(positionAccuracyMeters)))
+                else ready.moveCamera(CameraUpdateFactory.newCameraPosition(regionalCamera()))
+            }
         }
     }
 

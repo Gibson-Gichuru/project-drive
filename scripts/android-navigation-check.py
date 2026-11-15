@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Stationary M1 checks on an authorized phone; chooses public place names explicitly through search.
 
-Requires a loopback debug APK, the deployed Kenya place index, and working tcp:18081 reverse. Restarts the app,
-leaves location collection off, restores rotation and the reverse on failure.
+Requires a loopback debug APK, a test device without location permission, the deployed Kenya place index,
+and working tcp:18081 reverse. Restarts the app, leaves location collection off, restores rotation and the reverse on failure.
 No screenshots, GPS coordinates, hierarchy dumps or device IDs are retained.
 This is NOT a physical GPS journey or an offline-map-pack test.
 """
@@ -94,16 +94,20 @@ def passed(label):
     print('PASS: '+label, flush=True)
 
 
+permissions = shell('dumpsys', 'package', package)
+if re.search(r'android\.permission\.ACCESS_(?:FINE|COARSE)_LOCATION:\s*granted=true', permissions):
+    raise SystemExit('Fixed-place loopback checks require a test device without location permission; use an emulator. Current-location startup has separate native checks.')
+del permissions
 rotation = shell('settings', 'get', 'system', 'user_rotation').strip()
 automatic = shell('settings', 'get', 'system', 'accelerometer_rotation').strip()
 try:
     run('reverse', 'tcp:18081', 'tcp:18081')
     shell('am', 'force-stop', package)
     launch()
-    wait_text('Location off', prefix=True)
+    wait_text('Use my location')
     wait_text('© OpenStreetMap contributors', prefix=True)
     check_screen_awake(False)
-    passed('fresh process defaults to location off; attribution visible; ordinary screen timeout retained')
+    passed('without permission, location remains off; attribution visible; ordinary screen timeout retained')
     tap('Navigation')
     def select_named_place(placeholder, query, result_kind):
         tap(placeholder)
@@ -175,9 +179,9 @@ try:
     passed('background/resume stops guidance/playback and restores normal screen timeout')
     shell('am', 'force-stop', package)
     launch()
-    wait_text('Location off', prefix=True)
+    wait_text('Use my location')
     check_screen_awake(False)
-    passed('process restart does not resume location or guidance silently')
+    passed('process restart without permission keeps location and guidance off')
     raw = shell('dumpsys', 'meminfo', package)
     pss = re.search(r'TOTAL PSS:\s*(\d+)', raw)
     if pss:

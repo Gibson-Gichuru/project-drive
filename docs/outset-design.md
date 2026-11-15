@@ -2,8 +2,7 @@
 
 Date: 15 November 2026. The owner supplied a visual reference and requested a
 short road-trip/adventure name. **Outset** is the working application name,
-suggesting the start of a journey. This is a product naming choice, not a claim
-of exclusive name/domain availability.
+suggesting the start of a journey.
 
 ## Design
 
@@ -93,3 +92,21 @@ new launcher/test resources and the font-padding regression. Questions/results:
   build and pass lint?” Yes; the three focused camera tests then passed at 130%.
 
 Finish removed only wrapper-owned logs; APKs, captures and owner data were retained.
+
+## Delivery and recovery
+
+The source change is `57a78f8c8f3f01f08e4eff4223f354e2edabf83e`.
+[GitHub CI](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43698440404)
+verifies the source before the established image/GitOps promotion runs. There are
+no backend contract, authentication, Kubernetes resource or database migration
+changes in this UI release. Existing storage and Cloudflare routes are reused.
+To recover the previous UI, revert this source commit and rebuild/install the
+same Android package, keeping telemetry correction `2f5b9fa`. Local data does not
+need a migration or reset. Normal server release recovery follows the existing
+tested GitOps workflow.
+
+[Deployment](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43698903089)
+succeeded. The API rollout completed and Flux reported Ready=True at
+`homelab-deploy@sha1:c8736b1a94dc60d6de0ada495410a7c0683a61dc`.
+The subsequent [current-location correction](current-location.md) changes startup
+centering while preserving the design and free exploration behavior described here.

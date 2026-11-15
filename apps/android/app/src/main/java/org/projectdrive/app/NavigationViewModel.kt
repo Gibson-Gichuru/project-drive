@@ -139,8 +139,8 @@ class NavigationViewModel(private val placeSearch:PlaceSearch=RemotePlaceSearch(
         }
     }
 
-    fun requestLocation() {
-        useNextFixAsOrigin = true
+    fun requestLocation(useAsOrigin:Boolean=true) {
+        useNextFixAsOrigin = useAsOrigin
         mutable.update { it.copy(gpsWanted = true, locationStatus = "Waiting for location · preview still available") }
     }
     fun locationDenied() {

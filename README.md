@@ -40,7 +40,7 @@ cd apps/android
 ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-The debug APK is written to `apps/android/app/build/outputs/apk/debug/app-debug.apk`. M1 requests Internet access and offers explicit foreground location permission. It collects location only after “Use my location,” stops collection in the background, and does not request background location or share live positions. Phone startup/lifecycle evidence for M0 is recorded in [the device test](docs/device-tests/2026-11-13-M0.md).
+The debug APK is written to `apps/android/app/build/outputs/apk/debug/app-debug.apk`. With existing foreground location permission, the map starts at a fresh current fix. Without permission, “Use my location” explains and requests access. “Turn location off” persists across restarts. Location collection stops in the background; recording, sharing and guidance require their own actions. Startup does not fill route endpoints. See [current-location behavior and checks](docs/current-location.md). Historical M0 startup/lifecycle evidence is recorded in [the device test](docs/device-tests/2026-11-13-M0.md).
 
 ## Verification
 
@@ -91,7 +91,7 @@ docs/                specification, architecture, roadmap and ADRs
 
 ## License and data
 
-Project Drive code is licensed under GNU AGPL-3.0-only (see `LICENSE`), which keeps network-served modifications open. Third-party dependencies retain their own licenses. OSM data is subject to the Open Database License and requires attribution. See the M1 decision record for selected map components, source-specific terms, update process and operational requirements before any map stack is deployed.
+Outset code is licensed under GNU AGPL-3.0-only (see `LICENSE`), which keeps network-served modifications open. Third-party dependencies retain their own licenses. OSM data is subject to the Open Database License and requires attribution. See the M1 decision record for selected map components, source-specific terms, update process and operational requirements before any map stack is deployed.
 
 ## M2 trip API
 
@@ -103,11 +103,12 @@ The [M3 report](docs/milestones/M3.md) explains explicit sharing, authenticated 
 
 ## M5 local telemetry
 
-Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and the remaining physical journey gate. The owner scheduled physical testing for 14 November 2026; see [the field checklist](docs/device-tests/2026-11-14-field.md).
+Explicit foreground recording saves bounded derived summaries locally, without an account or automatic sharing/upload. The [M5 report](docs/milestones/M5.md) documents quality gates, candidate estimates, retention, private upload tests and the remaining physical journey gate. The owner's 14 November journal drive exposed a candidate-detection defect; the [15 November correction](docs/device-tests/2026-11-15-journal-events.md) is installed and awaits another ordinary journey. See [the field checklist](docs/device-tests/2026-11-14-field.md).
 
 ## Map-first navigation UI
 
 The app uses a full-screen map with on-demand Navigation, Convoy and Journal tools,
 Poppins typography, day/night styling, free pan/zoom and Recenter. From and To start
 empty; choose places by name, location permission, map pin or shared map link. See
-[UI evidence](docs/ui-ux-refresh.md) and [place search and links](docs/place-search.md).
+[current Outset design](docs/outset-design.md), [earlier UI evidence](docs/ui-ux-refresh.md)
+and [place search and links](docs/place-search.md).

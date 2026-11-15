@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.projectdrive.app.core.location.AndroidLocationSource
+import org.projectdrive.app.core.location.MapLocationPreference
 import org.projectdrive.app.map.MapLibreRenderer
 
 @dagger.hilt.android.AndroidEntryPoint
@@ -21,6 +22,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var model: NavigationViewModel
     private lateinit var telemetry: org.projectdrive.app.feature.telemetry.TelemetryViewModel
     private var telemetryPermission=false
+    private var locationForOrigin=false
+    private val mapLocationPreference by lazy { MapLocationPreference(this) }
     private lateinit var convoy: org.projectdrive.app.feature.convoy.ConvoyViewModel
     private var sessionImport = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
@@ -50,12 +53,14 @@ class MainActivity : ComponentActivity() {
         if (telemetryPermission) {
             telemetryPermission=false
             if(grants.values.any { it }) telemetry.start() else telemetry.permissionDenied()
-        } else if (grants.values.any { it }) { model.requestLocation(); location.start() }
+        } else if (grants.values.any { it }) { enableMapLocation(locationForOrigin) }
         else model.locationDenied()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        telemetryPermission=savedInstanceState?.getBoolean("drive.permission.telemetry")?:false
+        locationForOrigin=savedInstanceState?.getBoolean("drive.permission.origin")?:false
         enableEdgeToEdge()
         model = ViewModelProvider(this)[NavigationViewModel::class.java]
         telemetry = ViewModelProvider(this)[org.projectdrive.app.feature.telemetry.TelemetryViewModel::class.java]
@@ -73,9 +78,9 @@ class MainActivity : ComponentActivity() {
                 val state by model.state.collectAsState()
                 val group by convoy.state.collectAsState()
                 val recording by telemetry.state.collectAsState()
-                LaunchedEffect(recording.recording) {
-                    if(recording.recording && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && hasLocationPermission()) location.start()
-                    else if(!state.gpsWanted) location.stop()
+                LaunchedEffect(recording.recording, state.gpsWanted) {
+                    if((recording.recording || state.gpsWanted) && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && hasLocationPermission()) location.start()
+                    else if(!recording.recording && !state.gpsWanted) location.stop()
                 }
                 DisposableEffect(state.guiding, state.playback, recording.recording) {
                     val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -85,10 +90,12 @@ class MainActivity : ComponentActivity() {
                 var showLocationDisclosure by remember { mutableStateOf(false) }
                 org.projectdrive.app.ui.DriveScreen(
                     state, model, group, convoy, recording, telemetry, renderer, mapExploring, locationEnabled = state.gpsWanted && hasLocationPermission(),
-                    useLocation = { showLocationDisclosure = true },
+                    useLocation = { locationForOrigin=true;showLocationDisclosure=true },
+                    locateMap = { locationForOrigin=false;showLocationDisclosure=true },
                     stopLocation = {
                         convoy.stopSharing("Sharing off · location turned off")
                         telemetry.finish("Recording stopped when location was turned off", true)
+                        mapLocationPreference.enabled=false
                         location.stop(); model.stopLocation()
                     },
                     startRecording = {
@@ -101,11 +108,11 @@ class MainActivity : ComponentActivity() {
                 if (showLocationDisclosure) AlertDialog(
                     onDismissRequest = { showLocationDisclosure = false },
                     title = { Text("Use your location?") },
-                    text = { Text("Your location is used while this screen is open for route origin and guidance. It is not stored as a live track. Convoy sharing is off unless you explicitly enable it separately. Preview works without location access. Routing sends the chosen origin and destination to your self-hosted server.") },
+                    text = { Text("Your location centers the map while the app is visible. With permission, this resumes when you reopen the app; Turn location off remembers your choice. It does not start recording, sharing or guidance. Choosing Use my location in the planner also selects your route start. Routing sends the chosen endpoints to your self-hosted server. You can explore the map without location access.") },
                     confirmButton = { TextButton(onClick = {
                         showLocationDisclosure = false
-                        if (hasLocationPermission()) { model.requestLocation(); location.start() }
-                        else permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                        if (hasLocationPermission()) enableMapLocation(locationForOrigin)
+                        else { telemetryPermission=false;permission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) }
                     }) { Text("Continue") } },
                     dismissButton = { TextButton(onClick = { showLocationDisclosure = false }) { Text("Keep location off") } },
                 )
@@ -129,11 +136,31 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hasLocationPermission() = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    private fun enableMapLocation(useAsOrigin:Boolean) {
+        mapLocationPreference.enabled=true
+        model.requestLocation(useAsOrigin)
+        location.start()
+    }
     override fun onStart() { super.onStart(); renderer.onStart() }
-    override fun onResume() { super.onResume(); telemetry.resume(); convoy.resume(); renderer.onResume(); if (model.state.value.gpsWanted && hasLocationPermission()) { model.resumeForeground(); location.start() } }
+    override fun onResume() {
+        super.onResume();telemetry.resume();convoy.resume();renderer.onResume()
+        if(hasLocationPermission()) {
+            if(!model.state.value.gpsWanted && mapLocationPreference.enabled) {
+                model.requestLocation(useAsOrigin=false)
+                // A fresh map session starts at the user, while rotation retains
+                // an existing session's intentional manual exploration.
+                renderer.recenter()
+            }
+            if(model.state.value.gpsWanted) { model.resumeForeground();location.start() }
+        } else if(model.state.value.gpsWanted) model.locationDenied()
+    }
     override fun onPause() { telemetry.pause(); convoy.pause(); location.stop(); renderer.onPause(); super.onPause() }
     override fun onStop() { location.stop(); if (!isChangingConfigurations) model.pauseForeground(); renderer.onStop(); super.onStop() }
     override fun onDestroy() { location.stop(); renderer.onDestroy(); super.onDestroy() }
     override fun onLowMemory() { super.onLowMemory(); renderer.onLowMemory() }
-    override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); renderer.saveState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState);renderer.saveState(outState)
+        outState.putBoolean("drive.permission.telemetry",telemetryPermission)
+        outState.putBoolean("drive.permission.origin",locationForOrigin)
+    }
 }

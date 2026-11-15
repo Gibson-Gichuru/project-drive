@@ -29,16 +29,20 @@ class AndroidLocationSource(context: Context, private val onFix: (LocationFix) -
     @SuppressLint("MissingPermission")
     fun start() {
         stop()
-        try {
-            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
-                .filter { manager.isProviderEnabled(it) }
-            if (providers.isEmpty()) { onUnavailable(); return }
-            providers.forEach { provider ->
+        var registered = false
+        listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
+            try {
+                if (!manager.isProviderEnabled(provider)) return@forEach
                 manager.getLastKnownLocation(provider)?.let { listener.onLocationChanged(it) }
                 // Keep fresh fixes at a standstill; a distance filter can suppress stationary updates.
                 manager.requestLocationUpdates(provider, 1_000L, 0f, listener, Looper.getMainLooper())
+                registered = true
+            } catch (_: SecurityException) {
+                // A fine-only provider must not prevent an approximate provider
+                // from registering when the user granted coarse location only.
             }
-        } catch (_: SecurityException) { onUnavailable() }
+        }
+        if (!registered) onUnavailable()
     }
 
     fun stop() { manager.removeUpdates(listener) }

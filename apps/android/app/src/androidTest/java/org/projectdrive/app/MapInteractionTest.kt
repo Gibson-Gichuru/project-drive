@@ -23,6 +23,11 @@ import kotlin.math.abs
 /** Opt-in real native gestures on a fixed public route, with GPS off. */
 @RunWith(AndroidJUnit4::class)
 class MapInteractionTest {
+    private fun requireLocationOffForPublicFixture() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val permission=context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED || context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED
+        assumeTrue("Fixed public map fixture requires location off; current-location checks are separate",!permission||!org.projectdrive.app.core.location.MapLocationPreference(context).enabled)
+    }
     @Test fun savingBeforeMapReadinessRetainsThePreviousViewport() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
         val instrumentation=InstrumentationRegistry.getInstrumentation()
@@ -44,6 +49,7 @@ class MapInteractionTest {
     }
     @Test fun rapidRecreationBeforeStyleReadinessKeepsTheRegionalViewport() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
+        requireLocationOffForPublicFixture()
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             fun find(view:View):MapView? {
                 if(view is MapView)return view
@@ -68,7 +74,7 @@ class MapInteractionTest {
                 return checkNotNull(camera){"Map did not become ready after recreation"}
             }
             val initial=awaitCamera()
-            assertTrue("Initial map should show the region, without selecting route endpoints",initial.third>8)
+            assertTrue("Without location, show regional coverage rather than a fixed city",initial.third in 4.0..8.0)
             scenario.recreate()
             scenario.recreate()
             val restored=awaitCamera()
@@ -83,6 +89,7 @@ class MapInteractionTest {
     }
     @Test fun panPinchRecenterAndRotationRespectExploration() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("mapGestureChecks")=="true")
+        requireLocationOffForPublicFixture()
         val instrumentation=InstrumentationRegistry.getInstrumentation()
         fun waitFor(message:String,condition:()->Boolean) {
             val deadline=SystemClock.elapsedRealtime()+30000

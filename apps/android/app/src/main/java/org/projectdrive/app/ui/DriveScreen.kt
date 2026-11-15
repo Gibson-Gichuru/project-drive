@@ -50,7 +50,7 @@ private enum class DriveTab {
 fun DriveScreen(
     state:NavigationState, model:NavigationViewModel, group:ConvoyState, convoy:ConvoyViewModel,
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
-    useLocation:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, importSession:()->Unit,
+    useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, importSession:()->Unit,
 ) {
     var focusedRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(state.focusRequest) {
@@ -61,11 +61,14 @@ fun DriveScreen(
         }
     }
     SideEffect {
-        renderer.render(state.route,state.destination,state.simulatedPosition?:state.fix?.coordinate,state.playback,state.playback||state.guiding,group.participants.filter{it.id!=group.userId},group.now,NavigationViewModel.parseCoordinate(state.originText))
+        renderer.render(state.route,state.destination,state.simulatedPosition?:state.fix?.coordinate,state.playback,
+            state.playback||state.guiding||(state.gpsWanted&&state.route==null),
+            group.participants.filter{it.id!=group.userId},group.now,NavigationViewModel.parseCoordinate(state.originText),
+            if(state.playback)null else state.fix?.accuracyMeters)
     }
     DriveContent(
         state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,
-        recenter=renderer::recenter, stopGuidance=model::stopGuidance, finishRecording=finishRecording,
+        recenter={if(state.route==null&&!state.gpsWanted&&!state.playback)locateMap() else renderer.recenter()}, stopGuidance=model::stopGuidance, finishRecording=finishRecording,
         stopSharing={convoy.stopSharing()},
         mapContent={ modifier -> AndroidView(factory={renderer.view},modifier=modifier) },
         navigationContent={ backToMap -> NavigationPanel(state,model,recording.recording,useLocation,stopLocation,backToMap) },
@@ -135,7 +138,7 @@ fun DriveContent(
                 MapAction(DriveSymbol.Convoy,"Convoy",{openTools(DriveTab.Convoy)})
             }
             JourneyDock(state,exploring,recording,sharing,stopGuidance,
-                navigation={openTools(DriveTab.Navigation)},journal={openTools(DriveTab.Telemetry)},more={toolsOpen=true})
+                navigation={openTools(DriveTab.Navigation)},locate=recenter,journal={openTools(DriveTab.Telemetry)},more={toolsOpen=true})
             Surface(modifier=Modifier.padding(end=40.dp),shape=RoundedCornerShape(6.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.92f)) {
                 Text("© OpenStreetMap contributors · © OpenMapTiles",Modifier.padding(horizontal=6.dp,vertical=2.dp),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -182,7 +185,7 @@ private fun MapAction(symbol:DriveSymbol,label:String,onClick:()->Unit,modifier:
 @Composable
 private fun JourneyDock(
     state:NavigationState,exploring:Boolean,recording:Boolean,sharing:Boolean,stopGuidance:()->Unit,
-    navigation:()->Unit,journal:()->Unit,more:()->Unit,modifier:Modifier=Modifier,
+    navigation:()->Unit,locate:()->Unit,journal:()->Unit,more:()->Unit,modifier:Modifier=Modifier,
 ) {
     val active=state.guiding||state.playback
     val compact=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
@@ -191,6 +194,8 @@ private fun JourneyDock(
         state.guiding -> state.progress?.let { if(it.arrived)"You have arrived" else if(it.distanceToRouteMeters>60)"Off route · stop safely to replan" else it.maneuver.instruction } ?: "Waiting for location"
         state.route!=null -> state.destinationLabel.ifBlank{"Your route is ready"}
         recording -> "Your drive is recording"
+        state.gpsWanted&&state.fix==null -> "Finding your location"
+        state.gpsWanted -> "Ready when you are"
         else -> "Your next adventure"
     }
     val subtitle=when {
@@ -199,7 +204,7 @@ private fun JourneyDock(
         recording -> "Journal saved on this phone"
         sharing -> "Live sharing on"
         state.gpsWanted -> state.locationStatus
-        else -> "Find a place. Make a memory."
+        else -> "Enable location to see your area."
     }
     Surface(modifier=modifier.fillMaxWidth(),shape=RoundedCornerShape(28.dp),color=MaterialTheme.colorScheme.surface,shadowElevation=8.dp) {
         Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
@@ -219,11 +224,12 @@ private fun JourneyDock(
                 if(compact) MapAction(DriveSymbol.Compass,"Route details",navigation)
             }
             if(!compact) Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
-                Button(onClick=navigation,modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=CircleShape,
+                val needsLocation=state.route==null&&!state.gpsWanted&&!recording
+                Button(onClick=if(needsLocation)locate else navigation,modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=CircleShape,
                     contentPadding=PaddingValues(horizontal=12.dp,vertical=10.dp),
                     colors=ButtonDefaults.buttonColors(containerColor=MaterialTheme.colorScheme.surfaceVariant,contentColor=MaterialTheme.colorScheme.onSurface)) {
-                    DriveIcon(DriveSymbol.Compass,modifier=Modifier.size(20.dp));Spacer(Modifier.width(8.dp))
-                    Text(if(state.route!=null)"Route details" else "Plan a drive",maxLines=1,overflow=TextOverflow.Ellipsis)
+                    DriveIcon(if(needsLocation)DriveSymbol.Locate else DriveSymbol.Compass,modifier=Modifier.size(20.dp));Spacer(Modifier.width(8.dp))
+                    Text(if(needsLocation)"Use my location" else if(state.route!=null)"Route details" else "Plan a drive",maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
                 MapAction(DriveSymbol.Journal,"Journal",journal,highlighted=recording)
                 MapAction(DriveSymbol.More,"More tools",more)

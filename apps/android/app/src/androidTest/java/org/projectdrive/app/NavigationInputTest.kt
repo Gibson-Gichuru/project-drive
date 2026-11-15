@@ -77,8 +77,10 @@ class NavigationInputTest {
             }
         }finally{instrumentation.runOnMainSync{store.clear()}}
     }
-    @Test fun sharedLocationIntentSelectsPinWithoutStartingGuidanceOrGPS() {
+    @Test fun sharedLocationIntentSelectsPinWithoutChangingLocationChoiceOrStartingGuidance() {
         val context=instrumentation.targetContext
+        val permission=context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED || context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)==android.content.pm.PackageManager.PERMISSION_GRANTED
+        val expectedGps=permission && org.projectdrive.app.core.location.MapLocationPreference(context).enabled
         val cold=Intent(Intent.ACTION_SEND).apply {
             setClass(context,MainActivity::class.java);type="text/plain"
             putExtra(Intent.EXTRA_TEXT,"Public landmark\ngeo:-0.28,36.07?q=-0.28,36.07(Nakuru)")
@@ -90,7 +92,7 @@ class NavigationInputTest {
             await("cold shared intent did not select its destination"){model.state.value.destinationLabel=="Nakuru"}
             scenario.onActivity { activity ->
                 assertEquals("",model.state.value.originText);assertNull(model.state.value.route)
-                assertFalse(model.state.value.gpsWanted);assertFalse(model.state.value.guiding);assertFalse(model.state.value.playback)
+                assertEquals(expectedGps,model.state.value.gpsWanted);assertFalse(model.state.value.guiding);assertFalse(model.state.value.playback)
                 // Same action/type identity keeps ActivityScenario's intent-filtered
                 // lifecycle monitor attached while exercising real onNewIntent delivery.
                 activity.startActivity(Intent(Intent.ACTION_SEND).apply {
@@ -102,7 +104,7 @@ class NavigationInputTest {
             await("warm shared intent did not replace the selected destination"){model.state.value.destinationLabel=="Naivasha"}
             scenario.onActivity {
                 assertEquals("",model.state.value.originText);assertNull(model.state.value.route)
-                assertFalse(model.state.value.gpsWanted);assertFalse(model.state.value.guiding)
+                assertEquals(expectedGps,model.state.value.gpsWanted);assertFalse(model.state.value.guiding)
                 model.acceptSharedText("https://example.com/private-location")
             }
             await("unsupported link did not report its limitation"){model.state.value.searchError!=null}
