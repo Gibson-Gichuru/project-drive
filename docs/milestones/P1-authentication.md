@@ -4,12 +4,13 @@
 
 The owner selected Google sign-in through hosted Supabase Auth and canceled the
 homelab SMTP sender. Supabase owns account creation, Google OAuth, token exchange
-and refresh. The Android integration is being moved to the Supabase Kotlin auth
+and refresh. The Android integration uses the Supabase Kotlin auth
 client. Go/PostGIS remains the application and convoy authorization boundary.
 Google sign-in must never enable location sharing or uploads automatically.
 
 The separate Outset Free project `ghddrkgouwtagsgjqcxy` is healthy in the owner-approved organization (Mumbai). The existing Job Hunter project is untouched. Google Cloud project `outset-514815` is isolated too; consent branding is saved in testing mode after the owner approved Google's User Data Policy. Google provider
-configuration and a complete browser-to-app sign-in remain acceptance gates.
+configuration and the first real browser-to-app sign-in are now verified; see the
+live acceptance update below for completed and remaining gates.
 No paid plan, email service or delivery workaround is required by this decision.
 Google is the owner-selected optional account provider; solo maps and local
 recording remain available without an account.
@@ -160,15 +161,35 @@ trip creation without credentials 401, a well-formed forged hosted JWT 401 and
 unpublished Auth admin 404. Go vulnerability scanning found no vulnerabilities.
 The final notices workflow was finished, removing only its wrapper-owned logs.
 
-**Authentication remains in progress.** The prepared Google Web OAuth client
-form still needs its credential handoff: create the client, then enter its ID and
-secret directly in Supabase's Google provider panel and enable/save it. This step
-was not performed by the agent under the browser credential-entry handoff policy.
-No Google secret was generated, entered, stored in source, or requested in chat.
-After configuration, retry in Outset and perform a real stationary Google login,
-restoration, authorized convoy and sign-out/revocation check. No field drive is
-needed for that gate. Outstanding journey/head-unit/convoy field gates remain
-consolidated on 25 November.
+The credential handoff and real login gates below supersede the earlier pending
+provider observations. The owner created/configured the Google credentials and
+enabled the provider directly. The agent did not enter the Google secret, request
+it in chat, or copy it into source or application Secrets.
+
+## Live Google acceptance update — 15 November 2026
+
+- Direct hosted `/auth/v1/settings` returned 200 with Google enabled and Email
+  disabled. The live public `/v1/auth/config` subsequently returned 200 with
+  `available: true`, `google: true`, and `email_registration: false`. The initial
+  false result during activation cleared without an application/configuration
+  change; no security checks were relaxed.
+- On the connected physical phone, Retry connection enabled Continue with
+  Google. The app opened `accounts.google.com` and reached its account chooser.
+  The owner completed account selection and reported returning signed in.
+- The native app then exposed the signed-in convoy controls. The callback only
+  publishes that state after the Go `/v1/auth/me` identity check succeeds.
+- With no journey service running, a full app force-stop/relaunch restored the
+  signed-in account. The account panel displayed its signed-in restoration
+  message and Sign out; convoy state remained Sharing off. No journey, location
+  sharing, invitation or telemetry upload was started by these checks.
+- No APK/backend change or deployment was needed. The existing installed APK and
+  immutable backend source `b2e83be74bbc9a5b07becd189342877513e4f227` were used.
+
+**Authentication remains in progress:** real hosted private-convoy operations,
+sign-out/revocation, and account-change acceptance are still outstanding. Existing
+isolated fixtures do not substitute for those hosted checks. The phone is left
+signed in with sharing off. These are stationary account tests; the outstanding
+journey/head-unit/convoy field gates remain consolidated on 25 November.
 
 Google basic-identity/testing reference:
 [Google app audience policy](https://support.google.com/cloud/answer/15549945?hl=en).
