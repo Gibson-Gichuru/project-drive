@@ -6,7 +6,6 @@ resources:
   - api.yaml
   - maps.yaml
   - auth.yaml
-  - smtp.yaml
 images:
   - name: ghcr.io/gibson-gichuru/project-drive
-    newTag: b8c60b2b65025c41f55e5ce1f84ff9c9c900d947
+    newTag: a9f810fcb1cfc96ef5612d726e8546bf165f3099
