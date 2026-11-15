@@ -104,9 +104,9 @@ SPF/A records must be reviewed if it changes. The sender is outbound-only and ha
 no incoming mailbox/bounce processor. A verified PTR/delivery path and operational
 mail handling are required before broader registration or beta claims.
 
-The owner's physical phone is not currently discoverable. No installation or
-new real-head-unit/field pass is claimed by this increment yet. External test
-email recipient, CI/promotion, live acceptance and final phone update remain open.
+The phone was subsequently reconnected and updated in place; see delivery below.
+Real head-unit/field gates remain open. External inbox delivery is not established,
+so verified registration and recovery stay disabled.
 
 ### Final local regression checks
 
@@ -164,3 +164,47 @@ Private pre-release preservation material is at
 `~/.local/state/project-drive/backups/auth-pre-release-20261115T141137Z` (0700/0600):
 application/Auth PostgreSQL archives, roles, three exact Secrets and storage
 metadata. Both `pg_restore --list` catalog checks passed. A restore was not run.
+
+### Physical phone and SMTP signing follow-up
+
+The final account APK installed in place on the owner phone. A private pre/post
+SQLite snapshot compared every application table's row count and content hash:
+all matched and six saved recordings were preserved. No journey service was
+active before installation. All seven isolated native Auth UI/session/Keystore
+checks then passed on the physical phone. The actual Convoy account screen loaded
+public Auth configuration, showed sign-in and kept email controls gated. No
+production credentials were entered and no sharing or journey was started.
+
+The startup/logging release `e5de620254bbd52a80a1f493c0971b903233e479` passed
+[CI 43724756339](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43724756339)
+and [delivery 43725552369](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43725552369).
+Flux applied `homelab-deploy@sha1:05ebdad5dc2111e16045e504927ed36dbf414ee7`, with
+all five deployments Ready and the exact API image promoted. Auth's restricted
+role has no superuser/create-role/create-database/replication privileges; 75
+upstream migrations ran and no production users exist. A post-migration private
+Auth archive was catalog-validated too; this is not a restore test.
+
+Auth completed EHLO/NOOP/QUIT against SMTP. A disposable pod lacking the allowed
+labels was refused both Auth and SMTP access, then removed. SMTP's actual logger
+masked a synthetic address. Current direct IPv4 SMTP attempts from the pod and
+lab-01/lab-02 time out. An earlier node TCP connection succeeded, but it does not
+establish the current outbound delivery path. No external TLS/inbox pass is
+claimed. Timed-out probe processes were confirmed absent.
+
+The owner authorized one external delivery test. It was accepted into the queue,
+then held when header inspection found no signature. Rspamd's default eSLD
+normalization looked up `ripples.boo`, while the configured key belongs to
+`outset-mail.ripples.boo`. The follow-up disables that normalization and uses
+`tempfail` if the milter is unavailable. The same held message must be reprocessed,
+not duplicated. Do not log its recipient or contents in public source.
+
+`python3 scripts/smtp-acceptance.py` passed with the pinned Postfix/Rspamd image,
+a temporary synthetic key and reserved subdomain, and Mailpit on an externally
+isolated Docker network. It checked the exact signing domain, selector, nonempty
+RSA-SHA256 signature and matching relaxed body hash. It does not independently
+verify the RSA signature or establish inbox delivery. The first harness tried host
+ports, which are inaccessible on this isolated network; it was interrupted and
+cleaned, then corrected to execute entirely inside the fixture. The passing run
+publishes no ports, sends no external mail and removes its containers/key.
+This acceptance is now part of CI. Primary signing behavior:
+[Rspamd DKIM module](https://docs.rspamd.com/modules/dkim_signing/).

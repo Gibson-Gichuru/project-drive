@@ -1,0 +1,26 @@
+# Disposable capture-only SMTP acceptance. This network has no external route.
+services:
+  capture:
+    image: axllent/mailpit:v1.33.1
+    networks: [capture]
+    tmpfs: [/data]
+  smtp:
+    image: boky/postfix:v5.2.1@sha256:0632783c64183446c4edeae9092a2e015fdc0c4e8a3976bdf8878a7fc2146361
+    networks: [capture]
+    environment:
+      ALLOWED_SENDER_DOMAINS: outset-mail.example.invalid
+      POSTFIX_myhostname: outset-mail.example.invalid
+      POSTFIX_mynetworks: 127.0.0.0/8 172.16.0.0/12
+      POSTFIX_smtpd_recipient_restrictions: check_sender_access lmdb:/etc/postfix/allowed_senders, reject
+      RELAYHOST: "[capture]:1025"
+      POSTFIX_smtp_tls_security_level: none
+      DKIM_BACKEND: rspamd
+      RSPAMD_dkim_signing__use_esld: 'false'
+      POSTFIX_milter_default_action: tempfail
+      ANONYMIZE_EMAILS: paranoid
+      LOG_FORMAT: json
+    volumes:
+      - ${SMTP_SIGNING_KEYS:?private fixture key directory required}:/etc/opendkim/keys:ro
+networks:
+  capture:
+    internal: true
