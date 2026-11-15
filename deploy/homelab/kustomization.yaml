@@ -9,4 +9,4 @@ resources:
   - smtp.yaml
 images:
   - name: ghcr.io/gibson-gichuru/project-drive
-    newTag: e5de620254bbd52a80a1f493c0971b903233e479
+    newTag: b8c60b2b65025c41f55e5ce1f84ff9c9c900d947

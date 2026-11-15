@@ -83,6 +83,13 @@ spec:
           value: paranoid
         - name: LOG_FORMAT
           value: json
+        # Keys belong to the dedicated sender subdomain, not ripples.boo.
+        - name: DKIM_BACKEND
+          value: rspamd
+        - name: RSPAMD_dkim_signing__use_esld
+          value: 'false'
+        - name: POSTFIX_milter_default_action
+          value: tempfail
         startupProbe:
           tcpSocket:
             port: smtp
