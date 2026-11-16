@@ -29,6 +29,9 @@ jobs:
         run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
       - name: Verify project
         run: make ci
+      - name: Diagnose local database startup failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml --env-file .env logs --no-color --tail=60 db migrate
       - name: Verify real Supabase authentication and captured email
         run: python3 scripts/auth-acceptance.py
       - name: Build API image

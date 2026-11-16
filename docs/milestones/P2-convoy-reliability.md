@@ -52,7 +52,10 @@ handshake. They never use the owner's account or publish a real location.
 All 55 JVM checks, both debug APK builds and Android lint passed on 16 November.
 The final in-place installation passed nine native checks on the connected Samsung
 phone: two recovery transport, four convoy safety and three isolated auth-session
-checks (0.314 seconds). The fixtures use no owner account and publish no live point.
+checks (0.314 seconds, then 0.338 seconds on the final mobile source). A separate
+6.306-second phone check passed public HTTPS maps, routing/search and private
+HTTP/WebSocket denial: ten distinct native checks passed. The fixtures use no
+owner account and publish no live point.
 The first JVM run found an assertion that incorrectly required exception object identity across
 coroutine stack recovery. It was changed to compare type/message; this was a test
 assertion failure, not an authorization failure.
@@ -74,6 +77,20 @@ checks, lint and both APKs. It was finished, removing only wrapper-owned logs.
 Six owner recordings passed SQLite integrity and an unchanged private table
 hash/count after the in-place upgrade. GitHub delivery evidence will be appended
 after promotion.
+
+## CI startup correction
+
+CI on mobile source `c702c55` failed before Android validation: the fresh Compose
+database reported healthy on its temporary Unix setup socket and migrations
+received TCP connection refused. The preceding `ac54552` CI passed, confirming
+the intermittent nature; the failure was not hidden by rerunning unchanged code.
+A disposable fresh database with an eight-second init hook reproduced the failure.
+Changing Compose readiness to `pg_isready -h 127.0.0.1` passed the same delayed
+startup and all five migrations. Only that isolated fixture's volumes were removed.
+Compose/Kustomize validation passed. CI now includes bounded db/migrate failure
+logs. No homelab database/probe/schema or Android source was changed by this fix.
+The [official image entrypoint](https://github.com/docker-library/postgres/blob/master/docker-entrypoint.sh)
+starts its temporary setup server with TCP disabled.
 
 ## Remaining acceptance
 
