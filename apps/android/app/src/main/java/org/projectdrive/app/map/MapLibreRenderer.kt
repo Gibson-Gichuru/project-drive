@@ -24,6 +24,7 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import org.projectdrive.app.core.navigation.Coordinate
 import org.projectdrive.app.core.navigation.Route
 import org.projectdrive.app.core.convoy.Participant
+import org.projectdrive.app.core.reports.RoadReport
 
 // All MapLibre types stay in this renderer adapter.
 class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, onPin: (Coordinate) -> Unit, private val onExplorationChanged: (Boolean) -> Unit = {}) {
@@ -40,6 +41,10 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
     private var position: Coordinate? = null
     private var positionAccuracyMeters:Float?=null
     private var simulated = false
+    var onReportClick:((String)->Unit)?=null
+    var onReportPin:((Coordinate)->Unit)?=null
+    private var roadReports=emptyList<RoadReport>()
+    private var reportPin:Coordinate?=null
     private var participants = emptyList<Participant>()
     private var now = 0L
     private var fitted: Route? = null
@@ -79,11 +84,20 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
                     onExplorationChanged(true)
                 }
             }
-            ready.addOnMapLongClickListener { point -> onPin(Coordinate(point.latitude, point.longitude)); true }
+            ready.addOnMapLongClickListener { point -> (onReportPin ?: onPin)(Coordinate(point.latitude, point.longitude)); true }
+            ready.addOnMapClickListener { point ->
+                val p=ready.projection.toScreenLocation(point)
+                val hits=ready.queryRenderedFeatures(android.graphics.RectF(p.x-24,p.y-24,p.x+24,p.y+24),"report-dot")
+                val id=hits.firstOrNull()?.getStringProperty("report_id")
+                if(id!=null){onReportClick?.invoke(id);true}else false
+            }
             ready.setStyle(Style.Builder().fromJson(json)) { style ->
-                listOf("route", "origin", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
+                listOf("route", "origin", "destination", "position", "convoy-fresh", "convoy-stale", "convoy-accuracy", "road-reports", "report-pin").forEach { style.addSource(GeoJsonSource(it, emptyCollection)) }
                 style.addLayer(LineLayer("route-casing", "route").withProperties(lineColor(if(night) "#10281f" else "#ffffff"), lineWidth(9f), lineOpacity(0.95f), lineCap("round"), lineJoin("round")))
                 style.addLayer(LineLayer("route-line", "route").withProperties(lineColor(if(night) "#a8c7fa" else "#3278f6"), lineWidth(5f), lineOpacity(1f), lineCap("round"), lineJoin("round")))
+                style.addLayer(CircleLayer("report-dot","road-reports").withProperties(circleColor("#d4792e"),circleRadius(9f),circleStrokeColor("#ffffff"),circleStrokeWidth(2f)))
+                style.addLayer(SymbolLayer("report-label","road-reports").withProperties(textField("{label}"),textFont(arrayOf("Noto Sans Regular")),textSize(11f),textColor(if(night)"#ffffff" else "#242628"),textHaloColor(if(night)"#242628" else "#ffffff"),textHaloWidth(2f),textOffset(arrayOf(0f,1.6f))))
+                style.addLayer(CircleLayer("report-pin-dot","report-pin").withProperties(circleColor("#d4792e"),circleRadius(11f),circleStrokeColor("#242628"),circleStrokeWidth(3f)))
                 style.addLayer(CircleLayer("origin-dot","origin").withProperties(circleColor("#205744"),circleRadius(6f),circleStrokeColor("#ffffff"),circleStrokeWidth(2f)))
                 style.addLayer(SymbolLayer("origin-label","origin").withProperties(textField("Start"),textFont(arrayOf("Noto Sans Regular")),textSize(12f),textColor("#205744"),textHaloColor("#ffffff"),textHaloWidth(2f),textOffset(arrayOf(0f,-1.3f))))
                 style.addLayer(CircleLayer("destination-dot", "destination").withProperties(circleColor("#c15c45"), circleRadius(7f), circleStrokeColor("#ffffff"), circleStrokeWidth(2f)))
@@ -115,8 +129,16 @@ class MapLibreRenderer(context: Context, savedState: Bundle?, server: String, on
         positionCamera()
     }
 
+    fun renderReports(reports:List<RoadReport>,pin:Coordinate?) {
+        if(roadReports==reports&&reportPin==pin)return
+        roadReports=reports;reportPin=pin;redraw()
+    }
+
     private fun redraw() {
         val style = map?.style ?: return
+        val reports=JSONArray().also { list -> roadReports.forEach {report -> list.put(JSONObject(point(report.location)).put("properties",JSONObject().put("report_id",report.id).put("label",report.category.label+" · community"))) } }
+        style.getSourceAs<GeoJsonSource>("road-reports")?.setGeoJson(JSONObject().put("type","FeatureCollection").put("features",reports).toString())
+        style.getSourceAs<GeoJsonSource>("report-pin")?.setGeoJson(reportPin?.let{point(it)} ?: emptyCollection)
         for ((source, stale) in listOf("convoy-fresh" to false, "convoy-stale" to true)) {
             val markers = participants.filter { !it.expired(now) && it.stale(now) == stale }
             val features = JSONArray().also { list -> markers.forEach { list.put(JSONObject(point(it.coordinate)).put("properties", JSONObject().put("label", "${it.id.take(6)}${if (stale) " · stale" else ""}"))) } }

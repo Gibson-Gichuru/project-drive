@@ -36,7 +36,12 @@ plan and canceled the homelab SMTP service. The first Phase 1 increment is
 refresh/logout, live session revocation and private convoy/telemetry access.
 Software work proceeds while remaining Phase 0 field checks are consolidated on
 **25 November 2026**. This does not close M6.
-Community reports and route-aware warnings follow authentication acceptance.
+The owner authorized starting [community road reports and route-aware warnings](milestones/P1-road-reports.md)
+after real Google login and restart restoration passed. Hosted convoy and
+sign-out/account-change acceptance remain explicitly open; this sequencing does
+not close authentication or M6. Reports add a map overlay, authenticated
+observations/votes, expiry and passive route warnings; their physical checks join
+the consolidated outing.
 
 ## Phase 0 milestones
 

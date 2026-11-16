@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Project Drive API
-  version: 0.9.0
+  version: 0.10.0
   description: Outset private convoy API with hosted Supabase Auth and Google browser sign-in through its Kotlin client. Production sessions require confirmed email and active provider sessions. Offline development identities remain restricted to explicit local/test environments. Maps/search/routing are public prototype endpoints through the owner-authorized HTTPS origin. Live locations are explicit, revocable and ephemeral. Password authentication routes are available only in standalone local provider fixtures and return 404 in hosted Google mode. OAuth exchange and refresh go directly through the Supabase client; Go remains the authorization boundary.
 servers:
 - url: http://localhost:8080
@@ -1441,6 +1441,195 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/reports:
+    post:
+      operationId: createRoadReport
+      summary: Publish an observation visible to signed-in drivers
+      security:
+      - UserBearer: []
+      responses:
+        '200':
+          description: No-store authenticated community observation response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadReport'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadReportInput'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: '10 new reports per account per hour. Matching retries return the same report. Category expiry from observation: breakdown 1 hour; accident/obstacle 2 hours; closure 6 hours; camera 7 days; speed bump 30 days. Votes never extend expiry. Reporter identity is omitted from client responses.'
+  /v1/reports/nearby:
+    post:
+      operationId: nearbyRoadReports
+      summary: Nearest 100 active observations within a bounded radius
+      security:
+      - UserBearer: []
+      responses:
+        '200':
+          description: No-store authenticated community observation response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbyRoadReports'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - center
+              - radius_m
+              properties:
+                center:
+                  $ref: '#/components/schemas/ReportPoint'
+                radius_m:
+                  type: number
+                  minimum: 100
+                  maximum: 20000
+  /v1/reports/{report}/vote:
+    put:
+      operationId: voteRoadReport
+      summary: Replace your one active vote; reporters cannot vote on their own report
+      security:
+      - UserBearer: []
+      responses:
+        '200':
+          description: No-store authenticated community observation response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadReport'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - vote
+              properties:
+                vote:
+                  type: integer
+                  enum:
+                  - -1
+                  - 1
+      parameters:
+      - name: report
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      description: 60 changed votes per account per hour. Repeating an identical vote is a no-op, including audit history.
+  /v1/reports/{report}:
+    delete:
+      operationId: withdrawRoadReport
+      summary: Withdraw your own report; removes it from active queries and scrubs its note
+      security:
+      - UserBearer: []
+      responses:
+        '200':
+          description: No-store authenticated community observation response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadReport'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '404':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/AuthError'
+      parameters:
+      - name: report
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
 components:
   responses:
     AuthError:
@@ -1944,6 +2133,131 @@ components:
       properties:
         status:
           const: removed
+    ReportPoint:
+      type: object
+      additionalProperties: false
+      required:
+      - latitude
+      - longitude
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+    ReportCategory:
+      type: string
+      enum:
+      - accident
+      - breakdown
+      - camera
+      - speed_bump
+      - closure
+      - obstacle
+    RoadReportInput:
+      type: object
+      additionalProperties: false
+      required:
+      - category
+      - location
+      - observed_at
+      properties:
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        location:
+          $ref: '#/components/schemas/ReportPoint'
+        observed_at:
+          type: string
+          format: date-time
+          description: Observed within the last 24 hours and still inside category lifetime; maximum future skew 30 seconds.
+        note:
+          type: string
+          maxLength: 240
+          description: No control characters. Do not include personal details.
+    RoadReport:
+      type: object
+      required:
+      - id
+      - category
+      - location
+      - note
+      - observed_at
+      - created_at
+      - expires_at
+      - status
+      - mine
+      - confirmations
+      - dismissals
+      - my_vote
+      - confidence
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: '#/components/schemas/ReportCategory'
+        location:
+          $ref: '#/components/schemas/ReportPoint'
+        note:
+          type: string
+          maxLength: 240
+        observed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - active
+          - withdrawn
+          - expired
+        mine:
+          type: boolean
+        confirmations:
+          type: integer
+          minimum: 0
+        dismissals:
+          type: integer
+          minimum: 0
+        my_vote:
+          type: integer
+          enum:
+          - -1
+          - 0
+          - 1
+        confidence:
+          type: string
+          enum:
+          - unverified
+          - supported
+          - disputed
+          description: Community vote label, never an independently verified fact. Supported at 2 confirmations; disputed at 3 dismissals exceeding confirmations.
+    NearbyRoadReports:
+      type: object
+      required:
+      - reports
+      - server_time
+      - limit
+      properties:
+        reports:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/RoadReport'
+        server_time:
+          type: string
+          format: date-time
+        limit:
+          type: integer
+          const: 100
   securitySchemes:
     UserBearer:
       type: http

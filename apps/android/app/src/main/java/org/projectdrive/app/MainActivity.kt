@@ -13,6 +13,9 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.projectdrive.app.core.journey.JourneyRuntime
 import org.projectdrive.app.core.journey.JourneyAction
 import org.projectdrive.app.core.location.MapLocationPreference
@@ -26,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private var locationForOrigin=false
     private val mapLocationPreference by lazy { MapLocationPreference(this) }
     private lateinit var convoy: org.projectdrive.app.feature.convoy.ConvoyViewModel
+    private lateinit var reports:org.projectdrive.app.feature.reports.ReportsViewModel
     private lateinit var account: org.projectdrive.app.feature.convoy.AuthViewModel
     private var sessionImport = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
@@ -86,6 +90,8 @@ class MainActivity : ComponentActivity() {
         telemetry = ViewModelProvider(this)[org.projectdrive.app.feature.telemetry.TelemetryViewModel::class.java]
         convoy = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.ConvoyViewModel::class.java]
         account = ViewModelProvider(this)[org.projectdrive.app.feature.convoy.AuthViewModel::class.java]
+        reports=ViewModelProvider(this)[org.projectdrive.app.feature.reports.ReportsViewModel::class.java]
+        lifecycleScope.launch {repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED){while(isActive){reports.tick();delay(1_000)}}}
         renderer = MapLibreRenderer(this, savedInstanceState, BuildConfig.MAP_SERVER_URL, model::selectPin) { mapExploring = it }
         mapExploring = renderer.exploring
         if(savedInstanceState==null || intent.dataString?.let(org.projectdrive.app.core.auth.GoogleCallback::matches)==true)openSharedLocation(intent)
@@ -101,7 +107,7 @@ class MainActivity : ComponentActivity() {
                 }
                 var showLocationDisclosure by remember { mutableStateOf(false) }
                 org.projectdrive.app.ui.DriveScreen(
-                    state, model, group, convoy, recording, telemetry, renderer, mapExploring, account=account, locationEnabled = state.gpsWanted && hasLocationPermission(),
+                    state, model, group, convoy, recording, telemetry, renderer, mapExploring, reports=reports, account=account, locationEnabled = state.gpsWanted && hasLocationPermission(),
                     useLocation = { locationForOrigin=true;showLocationDisclosure=true },
                     locateMap = { locationForOrigin=false;showLocationDisclosure=true },
                     stopLocation = {
@@ -160,7 +166,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStart() { super.onStart(); renderer.onStart() }
     override fun onResume() {
-        super.onResume();runtime.foreground(true);renderer.onResume()
+        super.onResume();reports.foreground(true);runtime.foreground(true);renderer.onResume()
         if(hasLocationPermission()) {
             if(!model.state.value.gpsWanted && mapLocationPreference.enabled) {
                 model.requestLocation(useAsOrigin=false)
@@ -172,7 +178,7 @@ class MainActivity : ComponentActivity() {
         } else if(model.state.value.gpsWanted) model.locationDenied()
         dispatchPendingJourney()
     }
-    override fun onPause() { runtime.foreground(false);renderer.onPause();super.onPause() }
+    override fun onPause() { reports.foreground(false);runtime.foreground(false);renderer.onPause();super.onPause() }
     override fun onStop() { renderer.onStop();super.onStop() }
     override fun onDestroy() {runtime.activityDestroyed(isChangingConfigurations);renderer.onDestroy();super.onDestroy()}
     override fun onLowMemory() { super.onLowMemory(); renderer.onLowMemory() }

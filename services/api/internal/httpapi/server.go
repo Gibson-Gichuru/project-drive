@@ -18,6 +18,7 @@ type Options struct {
 	Auth      AuthOptions
 	Trips     TripOptions
 	Tracking  *tracking.Hub
+	Reports   ReportService
 	Telemetry *telemetry.Store
 }
 
@@ -46,6 +47,7 @@ func NewHandler(db Pinger, logger *slog.Logger, options ...Options) http.Handler
 		registerNavigation(mux, options[0].NavigationOptions)
 		registerAuth(mux, options[0].Auth)
 		registerTrips(mux, options[0].Trips)
+		registerReports(mux, options[0].Trips, options[0].Reports)
 		registerTelemetry(mux, options[0].Trips, options[0].Telemetry)
 		registerStream(mux, options[0].Trips, options[0].Tracking)
 	}
@@ -82,6 +84,9 @@ func logging(logger *slog.Logger, next http.Handler) http.Handler {
 		// Tile identifiers reveal the map viewport; log only the endpoint family.
 		if len(path) >= 6 && path[:6] == "/maps/" {
 			path = "/maps/{asset}"
+		}
+		if strings.HasPrefix(path, "/v1/reports") {
+			path = "/v1/reports/{operation}"
 		}
 		if strings.HasPrefix(path, "/v1/trips") {
 			path = "/v1/trips/{operation}"

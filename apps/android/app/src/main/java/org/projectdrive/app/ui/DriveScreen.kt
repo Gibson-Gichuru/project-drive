@@ -33,16 +33,18 @@ import org.projectdrive.app.NavigationViewModel
 import org.projectdrive.app.feature.convoy.*
 import org.projectdrive.app.feature.telemetry.*
 import org.projectdrive.app.map.MapLibreRenderer
+import org.projectdrive.app.feature.reports.*
 import java.util.Locale
 import kotlin.math.ceil
 
 private enum class DriveTab {
-    Navigation, Convoy, Telemetry;
+    Navigation, Convoy, Telemetry, Reports;
     val title get() = name
     val symbol get() = when(this) {
         Navigation -> DriveSymbol.Compass
         Convoy -> DriveSymbol.Convoy
         Telemetry -> DriveSymbol.Journal
+        Reports -> DriveSymbol.Road
     }
 }
 
@@ -51,13 +53,21 @@ private enum class DriveTab {
 fun DriveScreen(
     state:NavigationState, model:NavigationViewModel, group:ConvoyState, convoy:ConvoyViewModel,
     recording:TelemetryState, telemetry:TelemetryViewModel, renderer:MapLibreRenderer, exploring:Boolean, locationEnabled:Boolean,
-    account:AuthViewModel,
+    account:AuthViewModel, reports:ReportsViewModel,
     useLocation:()->Unit, locateMap:()->Unit, stopLocation:()->Unit, startRecording:()->Unit, finishRecording:()->Unit, startGuidance:()->Unit, startSharing:()->Unit, importSession:()->Unit,
 ) {
     val uriHandler=androidx.compose.ui.platform.LocalUriHandler.current
     val carConnection by telemetry.carConnection.collectAsState()
     val accountState by account.account.collectAsState()
     val accountUi by account.ui.collectAsState()
+    val road by reports.state.collectAsState()
+    LaunchedEffect(accountState.userId){reports.account(accountState.userId)}
+    LaunchedEffect(state.fix,state.route,state.guiding,state.playback){reports.navigation(state.fix,state.route,state.guiding,state.playback)}
+    DisposableEffect(renderer,reports) {
+        renderer.onReportClick=reports::select
+        onDispose {renderer.onReportClick=null;renderer.onReportPin=null}
+    }
+    SideEffect {renderer.onReportPin=if(road.picking) reports::pin else null;renderer.renderReports(road.reports,road.pin)}
     var focusedRequest by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(state.focusRequest) {
         if(state.focusRequest>0 && focusedRequest!=state.focusRequest) {
@@ -73,7 +83,7 @@ fun DriveScreen(
             if(state.playback)null else state.fix?.accuracyMeters)
     }
     DriveContent(
-        state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,carConnection=carConnection,
+        road=road,cancelReportPin=reports::cancelPin, state=state, exploring=exploring, recording=recording.recording, sharing=group.sharing,carConnection=carConnection,
         recenter={if(state.route==null&&!state.gpsWanted&&!state.playback)locateMap() else renderer.recenter()}, stopGuidance=model::stopGuidance, finishRecording=finishRecording,
         stopSharing={convoy.stopSharing()},
         mapContent={ modifier -> AndroidView(factory={renderer.view},modifier=modifier) },
@@ -81,6 +91,12 @@ fun DriveScreen(
         convoyContent={
             if(!org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) AccountContent(accountState,accountUi,{account.google(uriHandler::openUri)},account::signOut,account::retry)
             ConvoyPanel(group,convoy,NavigationViewModel.parseCoordinate(state.originText),NavigationViewModel.parseCoordinate(state.destinationText),locationEnabled,state.playback,importSession,startSharing)
+        },
+        reportsContent={ backToMap ->
+            ReportsContent(road,reports::enable,reports::disable,reports::refresh,
+                {reports.choosePin();backToMap()},reports::category,reports::note,reports::parked,
+                reports::publish,reports::vote,reports::withdraw,
+                {renderer.focus(it.location);backToMap()})
         },
         telemetryContent={ TelemetryPanel(recording,telemetry,group.trip,state.playback,startRecording,finishRecording,carConnection) },
     )
@@ -97,6 +113,8 @@ fun DriveContent(
     convoyContent:@Composable ColumnScope.()->Unit,
     telemetryContent:@Composable ColumnScope.()->Unit,
     carConnection:CarConnectionState=CarConnectionState.Checking,
+    road:ReportsUi=ReportsUi(),cancelReportPin:()->Unit={},
+    reportsContent:@Composable ColumnScope.(backToMap:()->Unit)->Unit={},
     modifier:Modifier=Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(DriveTab.Navigation) }
@@ -105,6 +123,8 @@ fun DriveContent(
     val landscape=LocalConfiguration.current.orientation==Configuration.ORIENTATION_LANDSCAPE
     var openedRequest by rememberSaveable { mutableStateOf(0L) }
     fun openTools(selected:DriveTab) { tab=selected;toolsOpen=true }
+    var reportRequest by rememberSaveable { mutableStateOf(0L) }
+    LaunchedEffect(road.openRequest) {if(road.openRequest>reportRequest){reportRequest=road.openRequest;openTools(DriveTab.Reports)}}
     LaunchedEffect(state.plannerRequest) {
         if(state.plannerRequest>0 && openedRequest!=state.plannerRequest) {
             openTools(DriveTab.Navigation);openedRequest=state.plannerRequest
@@ -122,6 +142,15 @@ fun DriveContent(
                 MapAction(DriveSymbol.Back,"Navigation",{openTools(DriveTab.Navigation)})
                 MapAction(DriveSymbol.More,"More tools",{toolsOpen=true})
             }
+            if(road.picking) Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.primaryContainer) {
+                Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Text("Hold the map to mark your report",Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
+                    TextButton(onClick=cancelReportPin){Text("Cancel pin")}
+                }
+            }
+            road.warning?.let { report -> Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.secondaryContainer) {
+                Text("${report.category.label} ahead · community observation",Modifier.padding(12.dp),style=MaterialTheme.typography.bodyMedium)
+            } }
             if(carConnection==CarConnectionState.AndroidAuto||carConnection==CarConnectionState.Automotive) StatusNote(carConnection.label,active=true)
             if(state.loading) Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface) {
                 Column(Modifier.widthIn(max=360.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -176,6 +205,7 @@ fun DriveContent(
                     DriveTab.Navigation -> navigationContent { toolsOpen=false }
                     DriveTab.Convoy -> convoyContent()
                     DriveTab.Telemetry -> telemetryContent()
+                    DriveTab.Reports -> reportsContent { toolsOpen=false }
                 }
             }
         }

@@ -16,6 +16,7 @@ import (
 	"projectdrive/services/api/internal/httpapi"
 	"projectdrive/services/api/internal/identity"
 	"projectdrive/services/api/internal/navigation"
+	"projectdrive/services/api/internal/reports"
 	"projectdrive/services/api/internal/telemetry"
 	"projectdrive/services/api/internal/tracking"
 	"projectdrive/services/api/internal/trips"
@@ -80,6 +81,7 @@ func main() {
 		os.Exit(2)
 	}
 	defer hub.Close()
+	reportStore := &reports.Store{DB: db}
 	telemetryStore := &telemetry.Store{DB: db}
 	go func() {
 		ticker := time.NewTicker(time.Minute)
@@ -90,6 +92,11 @@ func main() {
 				logger.Warn("telemetry expiry cleanup unavailable")
 			}
 			cancel()
+			reportCtx, reportCancel := context.WithTimeout(ctx, 5*time.Second)
+			if err := reportStore.Purge(reportCtx); err != nil && ctx.Err() == nil {
+				logger.Warn("report expiry cleanup unavailable")
+			}
+			reportCancel()
 			select {
 			case <-ctx.Done():
 				return
@@ -100,7 +107,7 @@ func main() {
 	coordinator := tracking.Coordinator{Hub: hub, Base: trips.Store{DB: db}}
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL, Places: places, PlaceIndexPath: cfg.PlaceIndexPath}, Auth: httpapi.AuthOptions{Provider: provider, EmailEnabled: cfg.AuthEmailEnabled, GoogleEnabled: cfg.GoogleEnabled, RevokeSession: hub.RevokeSession}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey, Authenticator: authenticator}, Tracking: hub, Telemetry: telemetryStore}),
+		Handler:           httpapi.NewHandler(db, logger, httpapi.Options{NavigationOptions: httpapi.NavigationOptions{Engine: engine, TileURL: cfg.TileURL, Places: places, PlaceIndexPath: cfg.PlaceIndexPath}, Auth: httpapi.AuthOptions{Provider: provider, EmailEnabled: cfg.AuthEmailEnabled, GoogleEnabled: cfg.GoogleEnabled, RevokeSession: hub.RevokeSession}, Trips: httpapi.TripOptions{Service: coordinator, PublicKey: publicKey, Authenticator: authenticator}, Tracking: hub, Reports: reportStore, Telemetry: telemetryStore}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
 		WriteTimeout:      30 * time.Second,

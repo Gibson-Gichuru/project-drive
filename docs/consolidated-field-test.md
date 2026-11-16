@@ -13,8 +13,9 @@ already valid evidence rather than repeating it without a reason.
   checks. One phone plus emulators remains valid software evidence, not that gate.
 - Both phones need working legitimate authentication for public convoy testing.
   The current public backend deliberately disables development identities and the
-  app has no production sign-in yet. This is a software dependency to resolve before
-  scheduling the combined convoy outing; do not publish development authentication
+  app now supports hosted Supabase Google sign-in; its first physical login and
+  restart restoration passed. Finish hosted convoy and sign-out acceptance before
+  the combined convoy outing; do not publish development authentication
   or assume the OSM browser login signs into Outset.
 - Use the public HTTPS map/API route over mobile data, without workstation ADB
   reverses. Verify both clients' map/search/route loading while parked. Full offline
@@ -40,6 +41,7 @@ hard braking, rapid acceleration or cornering to obtain candidate counts.
 | --- | --- | --- |
 | Parked start | Check attribution, named-place/shared-link destination, actual current origin, fresh usable GPS, preview fit, pan/zoom and Recenter. Start guidance, separately consent to journal recording and convoy sharing. Check ongoing notification. | Correct real location and route; no fixed default origin; permission/notification state visible; both real participants shown with freshness/accuracy. |
 | Ordinary journey | Follow the route. Observe instruction/marker progression and permitted road approach. Note any missed/incorrect instruction, restriction, road gap or UI failure. | M1 road/route observation and explicit arrival result at the destination. An estimate is not proof of legal access. |
+| Community road reports | While parked, sign in and explicitly enable nearby reports. Publish only an actual observed hazard using a checked map pin; a second signed-in participant can confirm/dismiss. During ordinary guidance, a passenger observes the nearest passive warning and notes parallel/elevated-road false positives. Pause network access while parked and check that old reports disappear within 90 s. Withdraw the observation only if it was erroneous or is no longer relevant. | No automatic location query on sign-in; no duplicate-vote inflation; no passed/expired/disputed/camera guidance warning; navigation gestures and destination remain intact. No fabricated public hazard or extra drive is needed for testing. |
 | Background/display | Record at least ten minutes screen-off on one device and at least five minutes in another app; stagger checks on the second device. Check guidance/recording/sharing after return. | Physical duration evidence and continued collection, with correct stale states if fixes stop. A mere `interrupted=false` summary is not proof of screen-off survival. |
 | Parked Android Auto | If a head unit is available, connect wired/wirelessly with the phone app open, check the connection badge, disconnect and verify status. Repeat return-to-app after a screen-off interval during a manually started journey. | Actual projection detection and disconnect recovery; connecting alone never starts recording/sharing/guidance. No projected Outset dashboard is claimed. Head-unit checks stay deferred if hardware is unavailable; do not schedule another drive only for detection. |
 | Parked connectivity | Briefly remove network access on one participant, verify disconnected/stale UI (default stale after about 10 s, position TTL about 30 s), then restore access and verify fresh resync. Check a loaded route versus an uncached request. | Recovery without falsely live markers or silently resurrected consent; document cached-only limits. Do not confuse offline display with an offline map pack. |
