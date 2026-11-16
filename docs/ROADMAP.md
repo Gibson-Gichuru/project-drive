@@ -59,6 +59,12 @@ stop cleanup. Existing roles/invitations and revocation remain server-enforced.
 Hosted account acceptance and multi-device field/battery gates remain open and join
 the 25 November consolidated run; this does not declare Phase 1, Phase 2 or M6 complete.
 
+**Software increment delivered — 16 November:** 55 JVM and ten distinct native
+checks passed; the final APK is installed with all six recordings preserved.
+GitHub CI/deployment passed on `003fc85`, and Flux/API/storage checks passed after
+promotion. Recovery, snapshot deadlines and cleanup backoff are implemented; the
+phase exit gate remains open for the physical and hosted-account checks above.
+
 ## Phase 0 milestones
 
 ### Current status — 2026-11-15

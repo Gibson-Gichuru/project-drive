@@ -75,8 +75,10 @@ Managed workflow `e513729ea888f26efe26bb2ec6192255` answered “Does the idle-cl
 guard pass unit tests, lint and final APK builds?” with a clean pass of all 55
 checks, lint and both APKs. It was finished, removing only wrapper-owned logs.
 Six owner recordings passed SQLite integrity and an unchanged private table
-hash/count after the in-place upgrade. GitHub delivery evidence will be appended
-after promotion.
+hash/count after both in-place upgrades. The installed APK's SHA-256 matches the
+final local artifact. No journey service remained active after testing. The final
+Android source is `c702c55`; subsequent source `003fc85` changes only Compose/CI
+startup and documentation, so the installed Android code is unchanged.
 
 ## CI startup correction
 
@@ -92,6 +94,31 @@ logs. No homelab database/probe/schema or Android source was changed by this fix
 The [official image entrypoint](https://github.com/docker-library/postgres/blob/master/docker-entrypoint.sh)
 starts its temporary setup server with TCP disabled.
 
+## Delivered release — 16 November 2026
+
+Source `003fc85106ed5100fca62b417b86dfc74535209e` passed
+[CI 43829297217](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43829297217)
+and [deployment 43830516899](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43830516899).
+Flux is Ready at `homelab-deploy@sha1:9fcf5603d1305fd518919bdafb9c858638bfeaa5`.
+The API deployment has one updated/ready replica running
+`ghcr.io/gibson-gichuru/project-drive:003fc85106ed5100fca62b417b86dfc74535209e`.
+Its new pod has zero restarts. DB/router/tiles are Ready, with unchanged historical
+restart counts of 2/1/1. Database/maps PVC UIDs, bound volumes and Bound state match
+the private pre-release record; no live database migration or credential change
+was required for this increment. Routine reads used the existing restricted
+deployer; the existing operator identity read Flux status. Neither RBAC nor public
+routes were changed.
+
+Post-rollout unauthenticated private-trip HTTP and WebSocket requests returned
+401. Five fixed public Kenya routes, one vector tile and a Latin glyph range
+passed the HTTPS smoke script. An initial Python-default-user-agent probe hit the
+existing Cloudflare 1010 filter; the explicit smoke client, curl and Android's
+public endpoint checks passed without any Cloudflare policy change.
+
+**Software delivery passed: pushed, deployed and installed. Phase 2 field and
+hosted-account acceptance remain open.** Documentation-only evidence commits use
+`[skip ci]` and do not require rebuilding the unchanged app or API image.
+
 ## Remaining acceptance
 
 Use the [25 November consolidated run](../consolidated-field-test.md). Record two
@@ -106,5 +133,24 @@ local publishing stops immediately and the server's last point expires by TTL.
 The server remains a single instance with ephemeral positions. Multi-instance
 Redis/pub-sub, voice convoy messages and automatic sharing on Android Auto
 connection are outside this increment. Phase 2 remains open until acceptance.
+
+## Changed files and repeatable checks
+
+- Android core: `core/convoy/TrackingStream.kt`, `TrackingConnection.kt`;
+  session/UI: `feature/convoy/ConvoySession.kt`, `ConvoyPanel.kt`.
+- Checks: JVM `TrackingStreamTest.kt`, native `ConvoyRecoveryTest.kt`; existing
+  `ConvoySafetyTest`, `AuthSessionTest` and opt-in `PublicEndpointTest` were run.
+- Delivery: `infra/compose.yaml`, `.github/workflows/ci.yml`.
+- Guidance: README, roadmap, this report and consolidated field run sheet.
+
+From `apps/android`, use the managed Gradle wrapper for
+`:app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug`.
+Install both APKs in place with `adb -s DEVICE install -r -t APK` while no journey
+is active. Run `am instrument -w -e class` with the three native class names above
+and runner `org.projectdrive.app.test/androidx.test.runner.AndroidJUnitRunner`.
+Run `PublicEndpointTest` separately with `-e publicEndpointChecks true`; it sends
+only fixed public samples. `make compose-config homelab-config` checks deployment
+rendering. Full CI also runs Go race/PostGIS/security and real standalone Supabase
+acceptance. The delayed fresh-volume startup check is described above.
 
 Transport reference: [OkHttp 4.12.0 ping and shared-client behavior](https://github.com/square/okhttp/blob/parent-4.12.0/okhttp/src/main/kotlin/okhttp3/OkHttpClient.kt).
