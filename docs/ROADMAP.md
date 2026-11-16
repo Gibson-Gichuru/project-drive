@@ -43,6 +43,13 @@ not close authentication or M6. Reports add a map overlay, authenticated
 observations/votes, expiry and passive route warnings; their physical checks join
 the consolidated outing.
 
+**Road reports software delivered — 16 November:** authenticated observations,
+map pins, one replaceable vote/account, expiry/withdrawal and passive route warnings
+are pushed, deployed and installed. CI, PostGIS acceptance, 47 JVM checks, eleven
+native UI checks and the actual-app draft-pin flow passed; all six owner recordings
+are unchanged. Nearby lookup remains opt-in. Physical relevance/readability checks
+stay open for the 25 November outing; see the report for limits and release evidence.
+
 ## Phase 0 milestones
 
 ### Current status — 2026-11-15

@@ -110,8 +110,9 @@ No Gradle owner remained. The final validation used a new managed workflow
 
 The final APK and test APK installed in place on the physical Samsung phone.
 Four report UI checks and three account UI checks passed. Four existing map/tool
-checks encountered the Android lock screen and are pending an unlocked rerun;
-they are not claimed as passing. The fixtures do not use owner credentials or
+checks initially encountered the Android lock screen; after the owner unlocked
+the phone, all four passed on a focused rerun (3.868 seconds). Eleven distinct
+native UI checks therefore passed. The fixtures do not use owner credentials or
 publish observations. Six owner recordings were present in the private
 pre-upgrade SQLite snapshot, whose integrity check passed.
 
@@ -121,9 +122,39 @@ for one hour after expiry, without RBAC changes. The authorized operator identit
 performed the database backup because the restricted identity cannot exec into
 the database pod. DB/map PVC identities were recorded before promotion.
 
-GitHub CI, Flux rollout, migration application, post-upgrade preservation and
-unlocked phone smoke results will be recorded after delivery. No fake observation
-was published to the live community feed.
+## Delivered verification — 16 November 2026
+
+Source `f6a54a7bff152f18eba8966772ee7fea90abd2e3` passed GitHub
+[CI 43823246265](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43823246265)
+and [deployment 43824437172](https://github.com/Gibson-Gichuru/project-drive/actions/runs/43824437172).
+Flux is Ready at `homelab-deploy@sha1:c8316310120d46fbd16730019f2eed234872209c`.
+The live API image matches that immutable source; rollout completed with one
+ready API replica and zero restarts. DB/router/tiles are Ready. Their pre-existing
+restart counts are 2/1/1 respectively; no claim of zero historical restarts is made.
+Migration `0005_road_reports` is applied along with the four earlier migrations.
+The DB/maps PVC UIDs, bound volumes and Bound status match the pre-release record.
+
+All four live report operations rejected unauthenticated requests with 401. The
+live auth config returned Google enabled and Email registration disabled. Five
+fixed public Kenya routes, a vector tile and a Latin glyph range passed the
+post-deployment smoke script. These are endpoint/asset checks, not field evidence.
+Authenticated report mutations and multi-user voting were tested in disposable
+PostGIS schemas, not by inserting synthetic hazards into the live community feed.
+
+After the in-place phone upgrade, SQLite integrity passed and the saved telemetry
+table hash/count matched the private pre-upgrade snapshot: all six recordings
+remain unchanged. The real Google account restored in the actual app, with sharing
+off. Reports displayed its opt-in nearby lookup and pin controls. Choosing pin mode
+and long-pressing the map returned to Reports with a local draft pin. No report,
+vote, nearby-report lookup or telemetry upload was submitted. A clean restart
+cleared the unpublished draft; the phone was left signed in on Reports, with
+nearby lookup still off. Native fixtures did not replace the owner's account.
+
+**Software delivery and stationary checks passed. Field acceptance remains open.**
+No fake observation was published. The implementation/evidence update does not
+close remaining authentication, M6, moderation-review or field gates. A later
+documentation-only evidence commit does not change the installed APK or require
+another backend image.
 
 Physical route relevance, false positives on parallel/elevated roads, warning
 readability and mobile-network freshness join the existing consolidated outing
