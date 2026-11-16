@@ -66,7 +66,14 @@ Managed Gradle workflow `13f2df4f7eed81b186f8b4cef3d7f23b` used:
 All runs used the managed wrapper with `:app:testDebugUnitTest`; aggregate runs
 also used `:app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug`. The
 workflow was finished after the final pass, removing only wrapper-owned logs.
-GitHub delivery and journal-preservation evidence will be appended after promotion.
+Final review also added a no-pending-intent guard before fetching credentials for
+cleanup, preventing an idle offline account from falsely showing cleanup pending.
+Managed workflow `e513729ea888f26efe26bb2ec6192255` answered “Does the idle-cleanup
+guard pass unit tests, lint and final APK builds?” with a clean pass of all 55
+checks, lint and both APKs. It was finished, removing only wrapper-owned logs.
+Six owner recordings passed SQLite integrity and an unchanged private table
+hash/count after the in-place upgrade. GitHub delivery evidence will be appended
+after promotion.
 
 ## Remaining acceptance
 

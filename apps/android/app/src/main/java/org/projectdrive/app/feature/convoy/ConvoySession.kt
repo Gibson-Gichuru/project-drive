@@ -237,11 +237,18 @@ class ConvoySession @Inject constructor(
     }
     private suspend fun revokePending(): Boolean {
         val previous=session?:return true
+        val pending = dao.pending(previous.userId)
+        // No server mutation is outstanding: do not refresh an idle account or
+        // claim cleanup is pending simply because the phone is offline.
+        if (pending.isEmpty()) {
+            cleanupAttempt = 0; cleanupRetryAt = 0
+            mutable.update { it.copy(pendingStop = false) }
+            return true
+        }
         val user=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)previous else try {
             auth.currentSession().takeIf{it.userId==previous.userId}?:return deferCleanup()
         }catch(e:CancellationException){throw e}catch(_:Exception){return deferCleanup()}
         session=user
-        val pending = dao.pending(user.userId)
         for (stop in pending) {
             try { api.request(user, "PUT", "/v1/trips/${stop.tripId}/sharing", JSONObject().put("enabled", false)); dao.forget(stop) }
             catch (e: ApiFailure) { if (e.status == 404) dao.forget(stop) else return deferCleanup() }
