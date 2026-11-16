@@ -13,7 +13,6 @@ import org.projectdrive.app.core.navigation.Coordinate
 import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.random.Random
 
 data class ConvoyState(
     val signedIn: Boolean = false, val userId: String = "", val trip: Trip? = null,
@@ -45,6 +44,8 @@ class ConvoySession @Inject constructor(
     private var createKey: String? = null
     private var createBody: String? = null
     private var inviteKey: String? = null
+    private var cleanupRetryAt = 0L
+    private var cleanupAttempt = 0
 
     init {
         sessionScope.launch {
@@ -52,15 +53,18 @@ class ConvoySession @Inject constructor(
             session?.let { mutable.update { s -> s.copy(signedIn = true, userId = it.userId, message = "Sharing off · local test session") } }
             mutex.withLock {
                 revokePending()
-                session?.let { current -> dao.selected(current.userId)?.let { saved -> runCatching { loadTrip(saved.tripId) } } }
+                session?.let { current -> dao.selected(current.userId)?.let { saved ->
+                    try { loadTrip(saved.tripId) } catch (e: CancellationException) { throw e } catch (_: Exception) { /* Retry through Refresh. */ }
+                } }
             }
             while (true) {
                 delay(1_000)
                 if(!org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) syncAccount()
                 val now = SystemClock.elapsedRealtime()
                 mutable.update { it.copy(now = now, participants = decoder.visible(now)) }
-                if (desired && (session?.expiresAtMillis ?: 0) <= System.currentTimeMillis()) stopSharing("Session expired · import a new session")
-                if (!desired && mutable.value.pendingStop && foreground) mutex.withLock { revokePending() }
+                // Hosted sessions refresh in the connection loop, including after an outage.
+                if (org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH && desired && (session?.expiresAtMillis ?: 0) <= System.currentTimeMillis()) stopSharing("Session expired · import a new session")
+                if (!desired && mutable.value.pendingStop && foreground && now >= cleanupRetryAt) mutex.withLock { revokePending() }
             }
         }
     }
@@ -189,32 +193,30 @@ class ConvoySession @Inject constructor(
         }
     }
     private suspend fun stream(initialUser: Session, trip: String, epoch: Long) {
-        var attempt = 0
-        while (foreground && desired && generation == epoch) {
-            decoder.clear(); mutable.update { it.copy(connected = false, participants = emptyList(), message = "Sharing on · reconnecting") }
-            try {
-                val user=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)initialUser else current()
-                coroutineScope {
-                    val deadline = launch { delay(10_000); if (!decoder.ready) connection.stop() }
-                    val renewal=launch {delay((user.expiresAtMillis-System.currentTimeMillis()-45_000).coerceAtLeast(1_000));connection.stop()}
-                    try {
-                        connection.events(user, trip).collect { text ->
-                            if (!desired || generation != epoch || !foreground) return@collect
-                            val kind = decoder.accept(text, SystemClock.elapsedRealtime())
-                            if (decoder.ready) { deadline.cancel(); attempt = 0 }
-                            mutable.update { it.copy(connected = decoder.ready, snapshotGeneration = it.snapshotGeneration + if (kind == "trip.snapshot") 1 else 0, participants = decoder.visible(SystemClock.elapsedRealtime()), message = "Sharing on · connected · journey notification active") }
-                        }
-                    } finally { deadline.cancel();renewal.cancel() }
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) {
-                if (e !is ApiFailure || e.status in setOf(400, 401, 403, 404, 409, 410)) {
-                    stopSharing("Sharing stopped · refresh membership or session")
-                    refresh(); return
-                }
-            }
-            mutable.update { it.copy(connected = false, message = "Disconnected · last known positions; reconnecting") }
-            delay(retryDelayMillis(attempt++, Random.nextLong(501)))
+        fun consent() { check(foreground && desired && generation == epoch) }
+        try {
+            TrackingStream(connection).run(initialUser.userId, trip,
+                session = { consent(); if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH) initialUser else current() },
+                connecting = {
+                    consent(); decoder.clear()
+                    mutable.update { it.copy(connected = false, participants = emptyList(), message = "Sharing on · connecting · waiting for fresh positions") }
+                },
+                message = { text ->
+                    consent()
+                    val now = SystemClock.elapsedRealtime()
+                    val kind = decoder.accept(text, now)
+                    mutable.update { it.copy(connected = decoder.ready, snapshotGeneration = it.snapshotGeneration + if (kind == "trip.snapshot") 1 else 0, participants = decoder.visible(now), message = "Sharing on · connected · journey notification active") }
+                    decoder.ready
+                },
+                disconnected = { pause ->
+                    decoder.clear()
+                    mutable.update { it.copy(connected = false, participants = emptyList(), message = "Sharing on · offline · positions hidden · retrying in ${(pause + 999) / 1000}s") }
+                },
+            )
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) {
+            stopSharing("Sharing stopped · refresh membership or sign in again")
+            refresh()
         }
     }
     private suspend fun select(trip: Trip) {
@@ -236,16 +238,24 @@ class ConvoySession @Inject constructor(
     private suspend fun revokePending(): Boolean {
         val previous=session?:return true
         val user=if(org.projectdrive.app.BuildConfig.LOCAL_TEST_AUTH)previous else try {
-            auth.currentSession().takeIf{it.userId==previous.userId}?:return false
-        }catch(e:CancellationException){throw e}catch(_:Exception){return false}
+            auth.currentSession().takeIf{it.userId==previous.userId}?:return deferCleanup()
+        }catch(e:CancellationException){throw e}catch(_:Exception){return deferCleanup()}
         session=user
         val pending = dao.pending(user.userId)
         for (stop in pending) {
             try { api.request(user, "PUT", "/v1/trips/${stop.tripId}/sharing", JSONObject().put("enabled", false)); dao.forget(stop) }
-            catch (e: ApiFailure) { if (e.status == 404) dao.forget(stop) else { mutable.update { it.copy(pendingStop = true) }; return false } }
-            catch (_: Exception) { mutable.update { it.copy(pendingStop = true) }; return false }
+            catch (e: ApiFailure) { if (e.status == 404) dao.forget(stop) else return deferCleanup() }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { return deferCleanup() }
         }
+        cleanupAttempt = 0; cleanupRetryAt = 0
         mutable.update { it.copy(pendingStop = false) }; return true
+    }
+    private fun deferCleanup(): Boolean {
+        cleanupRetryAt = SystemClock.elapsedRealtime() + retryDelayMillis(cleanupAttempt)
+        cleanupAttempt = (cleanupAttempt + 1).coerceAtMost(5)
+        mutable.update { it.copy(pendingStop = true) }
+        return false
     }
     private fun action(block: suspend () -> Unit) { sessionScope.launch {
         mutex.withLock {

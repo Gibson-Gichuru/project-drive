@@ -17,13 +17,16 @@ interface TrackingConnection {
     fun send(message: String): Boolean
     fun stop()
 }
-class SocketTrackingConnection @Inject constructor(private val client: OkHttpClient) : TrackingConnection {
+class SocketTrackingConnection internal constructor(client: OkHttpClient, private val origin: String) : TrackingConnection {
+    @Inject constructor(client: OkHttpClient) : this(client, BuildConfig.API_SERVER_URL)
+    private val streamClient = client.newBuilder().pingInterval(15, java.util.concurrent.TimeUnit.SECONDS).build()
     @Volatile private var socket: WebSocket? = null
     override fun events(session: Session, trip: String): Flow<String> = callbackFlow {
         UUID.fromString(trip)
-        val request = Request.Builder().url(BuildConfig.API_SERVER_URL + "/v1/trips/$trip/stream")
+        val request = Request.Builder().url(origin + "/v1/trips/$trip/stream")
             .header("Authorization", "Bearer ${session.token}").header("Sec-WebSocket-Protocol", "project-drive.v1").build()
-        val connection = client.newWebSocket(request, object : WebSocketListener() {
+        // A dead radio link must eventually fail even when neither participant moves.
+        val connection = streamClient.newWebSocket(request, object : WebSocketListener() {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 if (text.toByteArray(Charsets.UTF_8).size > 65536 || !trySend(text).isSuccess) {
                     webSocket.cancel(); close(ApiFailure(0, "stream_overflow"))
@@ -31,9 +34,9 @@ class SocketTrackingConnection @Inject constructor(private val client: OkHttpCli
             }
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) { webSocket.cancel(); close(ApiFailure(400, "binary_message")) }
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                webSocket.close(code, null); close(ApiFailure(if (code == 1008) 403 else 0, "stream_closed"))
+                webSocket.close(code, null); close(ApiFailure(streamCloseStatus(code), "stream_closed"))
             }
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { close(ApiFailure(0, "stream_closed")) }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { close(ApiFailure(streamCloseStatus(code), "stream_closed")) }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { close(ApiFailure(response?.code ?: 0, "connection_failed")) }
         })
         socket = connection
@@ -46,6 +49,12 @@ class SocketTrackingConnection @Inject constructor(private val client: OkHttpCli
         return current.send(message)
     }
     override fun stop() { socket?.cancel(); socket = null }
+}
+
+internal fun streamCloseStatus(code: Int): Int = when (code) {
+    1008 -> 403
+    1002, 1003, 1007, 1009 -> 400
+    else -> 0
 }
 
 /** Server time is anchored to monotonic receipt, so local wall-clock changes cannot

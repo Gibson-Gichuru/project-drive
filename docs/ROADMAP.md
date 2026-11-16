@@ -50,6 +50,15 @@ native UI checks and the actual-app draft-pin flow passed; all six owner recordi
 are unchanged. Nearby lookup remains opt-in. Physical relevance/readability checks
 stay open for the 25 November outing; see the report for limits and release evidence.
 
+## Phase 2 — Convoy reliability started 16 November
+
+The owner authorized the next increment after road reports software delivery.
+[Convoy reliability](milestones/P2-convoy-reliability.md) hardens snapshot deadlines,
+network and credential-refresh retries, offline UI, account boundaries and durable
+stop cleanup. Existing roles/invitations and revocation remain server-enforced.
+Hosted account acceptance and multi-device field/battery gates remain open and join
+the 25 November consolidated run; this does not declare Phase 1, Phase 2 or M6 complete.
+
 ## Phase 0 milestones
 
 ### Current status — 2026-11-15

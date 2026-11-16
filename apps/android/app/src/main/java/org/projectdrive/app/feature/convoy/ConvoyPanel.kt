@@ -94,7 +94,7 @@ fun ConvoyPanel(state: ConvoyState, model: ConvoyViewModel, origin: Coordinate?,
         state.participants.filter { marker -> state.members.none { it.id == marker.id } }.forEach { marker ->
             Text("Participant ${marker.id.take(6)} · ${if (marker.stale(state.now)) "STALE" else "Recent"} · ±${ceil(marker.accuracy).toInt()} m · ${marker.age(state.now) / 1000}s ago", style = MaterialTheme.typography.bodySmall)
         }
-        Text("Green markers are recent; grey markers are stale. Last known positions expire automatically. Sharing continues with the journey notification when the screen is off. Stop it here or in the notification.", style = MaterialTheme.typography.bodySmall)
+        Text("Green markers are recent; grey markers are stale. Positions expire automatically and are hidden while disconnected until a fresh snapshot arrives. Sharing continues with the journey notification when the screen is off. Stop it here or in the notification.", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = model::closeTrip, enabled = !state.busy) { Text("Close convoy view · stay a member") }
     }
     if (confirmShare) AlertDialog(
